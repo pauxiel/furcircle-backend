@@ -254,6 +254,53 @@ import { signInWithRedirect } from 'aws-amplify/auth';
 await signInWithRedirect({ provider: 'Google' });
 ```
 
+### Forgot Password (Request Reset Code)
+```javascript
+import { resetPassword } from 'aws-amplify/auth';
+
+// Step 1: Request password reset - sends 6-digit code to user's email
+async function handleForgotPassword(email) {
+  try {
+    const output = await resetPassword({ username: email });
+    // output.nextStep.codeDeliveryDetails contains delivery info
+    console.log('Code sent to:', output.nextStep.codeDeliveryDetails.destination);
+    // Navigate to "Enter Code" screen
+  } catch (error) {
+    console.error('Error requesting reset:', error.message);
+  }
+}
+```
+
+### Reset Password (Confirm with Code)
+```javascript
+import { confirmResetPassword } from 'aws-amplify/auth';
+
+// Step 2: Confirm new password with the code received via email
+async function handleResetPassword(email, code, newPassword) {
+  try {
+    await confirmResetPassword({
+      username: email,
+      confirmationCode: code,
+      newPassword: newPassword
+    });
+    // Success! Navigate to "Password Changed" screen or Sign In
+  } catch (error) {
+    console.error('Error resetting password:', error.message);
+    // Common errors:
+    // - CodeMismatchException: Invalid code
+    // - ExpiredCodeException: Code expired (request new one)
+    // - InvalidPasswordException: Password doesn't meet requirements
+  }
+}
+```
+
+### Password Requirements
+- Minimum 8 characters
+- At least 1 uppercase letter
+- At least 1 lowercase letter
+- At least 1 number
+- At least 1 special character (!@#$%^&* etc.)
+
 ### Make Authenticated API Calls
 ```javascript
 import { fetchAuthSession } from 'aws-amplify/auth';
