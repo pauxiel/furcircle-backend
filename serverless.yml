@@ -1,0 +1,355 @@
+# DogServices API - FurCircle Backend
+service: furcircle-dogservices-api
+frameworkVersion: "4"
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, 'us-east-1'}
+  # Uncomment to easily set up a custom domain. Read the docs for more details:
+  # https://www.serverless.com/framework/docs/providers/aws/guide/domains
+  # domain: api.example.com
+
+  environment:
+    DOGS_SERVICES_TABLE: !Ref DogServiceTable
+    COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+    COGNITO_USER_POOL_ARN: !GetAtt CognitoUserPool.Arn
+    COGNITO_WEB_CLIENT_ID: !Ref WebCognitoUserPoolClient
+    COGNITO_SERVER_CLIENT_ID: !Ref ServerCognitoUserPoolClient
+    COGNITO_IDENTITY_POOL_ID: !Ref CognitoIdentityPool
+    API_ENDPOINT: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Scan
+            - dynamodb:Query
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - !GetAtt DogServiceTable.Arn
+            - !Sub "${DogServiceTable.Arn}/index/*"
+
+functions:
+  # GET /dogservices - List all dog services (authenticated users)
+  list-dogservices:
+    handler: functions/dogservices/list.handler
+    events:
+      - http:
+          path: /dogservices
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # GET /dogservices/{id} - Get a single dog service (authenticated users)
+  get-dogservice:
+    handler: functions/dogservices/get.handler
+    events:
+      - http:
+          path: /dogservices/{id}
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # POST /dogservices/search - Search dog services (authenticated users)
+  search-dogservices:
+    handler: functions/dogservices/search.handler
+    events:
+      - http:
+          path: /dogservices/search
+          method: post
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # POST /dogservices - Create a new dog service (admin only - IAM auth)
+  create-dogservice:
+    handler: functions/dogservices/create.handler
+    events:
+      - http:
+          path: /dogservices
+          method: post
+          cors: true
+          authorizer: aws_iam
+
+  # PUT /dogservices/{id} - Update a dog service (admin only - IAM auth)
+  update-dogservice:
+    handler: functions/dogservices/update.handler
+    events:
+      - http:
+          path: /dogservices/{id}
+          method: put
+          cors: true
+          authorizer: aws_iam
+
+  # DELETE /dogservices/{id} - Delete a dog service (admin only - IAM auth)
+  delete-dogservice:
+    handler: functions/dogservices/delete.handler
+    events:
+      - http:
+          path: /dogservices/{id}
+          method: delete
+          cors: true
+          authorizer: aws_iam
+
+resources:
+  Resources:
+    DogServiceTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: category
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: category-index
+            KeySchema:
+              - AttributeName: category
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: ${self:service}-${sls:stage}
+        AliasAttributes:
+          - email
+        UsernameConfiguration:
+          CaseSensitive: false
+        AutoVerifiedAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireUppercase: true
+            RequireSymbols: true
+        Schema:
+          - AttributeDataType: String
+            Mutable: true
+            Name: given_name
+            Required: true
+            StringAttributeConstraints:
+              MinLength: "1"
+          - AttributeDataType: String
+            Mutable: true
+            Name: family_name
+            Required: true
+            StringAttributeConstraints:
+              MinLength: "1"
+          - AttributeDataType: String
+            Mutable: true
+            Name: email
+            Required: true
+            StringAttributeConstraints:
+              MinLength: "1"
+
+    # Google Identity Provider
+    # To set up: https://console.cloud.google.com/apis/credentials
+    # 1. Create OAuth 2.0 Client ID (Web application)
+    # 2. Add authorized redirect URI: https://furcircle-dogservices-api-dev.auth.us-east-1.amazoncognito.com/oauth2/idpresponse
+    # 3. Copy Client ID and Client Secret below
+    GoogleIdentityProvider:
+      Type: AWS::Cognito::UserPoolIdentityProvider
+      Properties:
+        UserPoolId: !Ref CognitoUserPool
+        ProviderName: Google
+        ProviderType: Google
+        ProviderDetails:
+          client_id: ${self:custom.google.clientId}
+          client_secret: ${self:custom.google.clientSecret}
+          authorize_scopes: "profile email openid"
+        AttributeMapping:
+          email: email
+          given_name: given_name
+          family_name: family_name
+          username: sub
+
+    # Apple Identity Provider - UNCOMMENT when you have Apple Developer credentials
+    # To set up: https://developer.apple.com/account/resources/identifiers
+    # 1. Create a Services ID (for Sign in with Apple)
+    # 2. Create a Key with Sign in with Apple enabled
+    # 3. Copy Team ID, Key ID, Services ID, and private key below
+    # AppleIdentityProvider:
+    #   Type: AWS::Cognito::UserPoolIdentityProvider
+    #   Properties:
+    #     UserPoolId: !Ref CognitoUserPool
+    #     ProviderName: SignInWithApple
+    #     ProviderType: SignInWithApple
+    #     ProviderDetails:
+    #       client_id: ${self:custom.apple.servicesId}
+    #       team_id: ${self:custom.apple.teamId}
+    #       key_id: ${self:custom.apple.keyId}
+    #       private_key: ${self:custom.apple.privateKey}
+    #       authorize_scopes: "name email"
+    #     AttributeMapping:
+    #       email: email
+    #       given_name: firstName
+    #       family_name: lastName
+    #       username: sub
+
+    WebCognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      DependsOn:
+        - GoogleIdentityProvider
+        # - AppleIdentityProvider  # Uncomment when Apple is configured
+      Properties:
+        ClientName: web
+        UserPoolId: !Ref CognitoUserPool
+        ExplicitAuthFlows:
+          - ALLOW_USER_SRP_AUTH
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+        PreventUserExistenceErrors: ENABLED
+        SupportedIdentityProviders:
+          - COGNITO
+          - Google
+          # - SignInWithApple  # Uncomment when Apple is configured
+        AllowedOAuthFlows:
+          - code
+        AllowedOAuthScopes:
+          - email
+          - openid
+          - profile
+        AllowedOAuthFlowsUserPoolClient: true
+        CallbackURLs:
+          - furcircle://callback
+          - http://localhost:8100/callback
+        LogoutURLs:
+          - furcircle://logout
+          - http://localhost:8100/logout
+
+    ServerCognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: server
+        UserPoolId: !Ref CognitoUserPool
+        ExplicitAuthFlows:
+          - ALLOW_ADMIN_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+        PreventUserExistenceErrors: ENABLED
+
+    # Cognito Domain for hosted UI (required for social login)
+    CognitoUserPoolDomain:
+      Type: AWS::Cognito::UserPoolDomain
+      Properties:
+        Domain: ${self:service}-${sls:stage}
+        UserPoolId: !Ref CognitoUserPool
+
+    # Identity Pool for federated identities (Apple Sign-In, etc.)
+    CognitoIdentityPool:
+      Type: AWS::Cognito::IdentityPool
+      Properties:
+        IdentityPoolName: ${self:service}-${sls:stage}-identity
+        AllowUnauthenticatedIdentities: false
+        CognitoIdentityProviders:
+          - ClientId: !Ref WebCognitoUserPoolClient
+            ProviderName: !GetAtt CognitoUserPool.ProviderName
+        # Apple Sign-In - uncomment and configure when you have Apple Developer credentials
+        # SupportedLoginProviders:
+        #   appleid.apple.com: "your.apple.service.id"
+
+    # IAM role for authenticated users (from Cognito)
+    CognitoAuthenticatedRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Federated: cognito-identity.amazonaws.com
+              Action: sts:AssumeRoleWithWebIdentity
+              Condition:
+                StringEquals:
+                  cognito-identity.amazonaws.com:aud: !Ref CognitoIdentityPool
+                ForAnyValue:StringLike:
+                  cognito-identity.amazonaws.com:amr: authenticated
+        Policies:
+          - PolicyName: CognitoAuthorizedPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - execute-api:Invoke
+                  Resource:
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/dogservices
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/dogservices/*
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/POST/dogservices/search
+
+    # Attach roles to Identity Pool
+    CognitoIdentityPoolRoleAttachment:
+      Type: AWS::Cognito::IdentityPoolRoleAttachment
+      Properties:
+        IdentityPoolId: !Ref CognitoIdentityPool
+        Roles:
+          authenticated: !GetAtt CognitoAuthenticatedRole.Arn
+
+  Outputs:
+    DogServiceTableName:
+      Value: !Ref DogServiceTable
+    ApiEndpoint:
+      Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
+
+    CognitoUserPoolId:
+      Value: !Ref CognitoUserPool
+
+    CognitoUserPoolArn:
+      Value: !GetAtt CognitoUserPool.Arn
+
+    CognitoUserPoolWebClientId:
+      Value: !Ref WebCognitoUserPoolClient
+
+    CognitoUserPoolServerClientId:
+      Value: !Ref ServerCognitoUserPoolClient
+
+    CognitoIdentityPoolId:
+      Value: !Ref CognitoIdentityPool
+
+    CognitoDomain:
+      Value: !Sub "${self:service}-${sls:stage}.auth.${AWS::Region}.amazoncognito.com"
+
+plugins:
+  - serverless-export-env
+
+custom:
+  export-env:
+    overwrite: true
+
+  # Google OAuth credentials - get from https://console.cloud.google.com/apis/credentials
+  # Create OAuth 2.0 Client ID -> Web application
+  # Add redirect URI: https://${self:service}-${sls:stage}.auth.us-east-1.amazoncognito.com/oauth2/idpresponse
+  google:
+    clientId: ${env:GOOGLE_CLIENT_ID, 'PLACEHOLDER_GOOGLE_CLIENT_ID'}
+    clientSecret: ${env:GOOGLE_CLIENT_SECRET, 'PLACEHOLDER_GOOGLE_CLIENT_SECRET'}
+
+  # Apple Sign-In credentials - get from https://developer.apple.com/account
+  # 1. Create App ID with Sign in with Apple
+  # 2. Create Services ID for Sign in with Apple
+  # 3. Create Key with Sign in with Apple enabled
+  apple:
+    teamId: ${env:APPLE_TEAM_ID, 'PLACEHOLDER_APPLE_TEAM_ID'}
+    keyId: ${env:APPLE_KEY_ID, 'PLACEHOLDER_APPLE_KEY_ID'}
+    servicesId: ${env:APPLE_SERVICES_ID, 'PLACEHOLDER_APPLE_SERVICES_ID'}
+    privateKey: ${env:APPLE_PRIVATE_KEY, 'PLACEHOLDER_APPLE_PRIVATE_KEY'}

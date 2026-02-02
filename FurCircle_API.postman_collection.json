@@ -1,0 +1,187 @@
+{
+  "info": {
+    "name": "FurCircle API",
+    "_postman_id": "furcircle-api-collection",
+    "description": "FurCircle Dog Services API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://88m7wcqc8l.execute-api.us-east-1.amazonaws.com/dev"
+    },
+    {
+      "key": "idToken",
+      "value": "YOUR_COGNITO_ID_TOKEN"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get Token (Cognito)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-amz-json-1.1"
+              },
+              {
+                "key": "X-Amz-Target",
+                "value": "AWSCognitoIdentityProviderService.InitiateAuth"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"AuthFlow\": \"USER_PASSWORD_AUTH\",\n  \"ClientId\": \"50sjjavobi0e2q9kndlh3mfuk7\",\n  \"AuthParameters\": {\n    \"USERNAME\": \"testuser1\",\n    \"PASSWORD\": \"TestPass123!\"\n  }\n}"
+            },
+            "url": {
+              "raw": "https://cognito-idp.us-east-1.amazonaws.com/",
+              "protocol": "https",
+              "host": ["cognito-idp", "us-east-1", "amazonaws", "com"],
+              "path": [""]
+            },
+            "description": "Get ID Token from Cognito. Copy the IdToken from response and paste into collection variable."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dog Services",
+      "item": [
+        {
+          "name": "List All Dog Services",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{idToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dogservices",
+              "host": ["{{baseUrl}}"],
+              "path": ["dogservices"]
+            }
+          }
+        },
+        {
+          "name": "List Dog Services by Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{idToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dogservices?category=Grooming",
+              "host": ["{{baseUrl}}"],
+              "path": ["dogservices"],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Grooming"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List with Limit",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{idToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dogservices?limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["dogservices"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Dog Service",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{idToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dogservices/service-001",
+              "host": ["{{baseUrl}}"],
+              "path": ["dogservices", "service-001"]
+            }
+          }
+        },
+        {
+          "name": "Search Dog Services",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{idToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"grooming\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dogservices/search",
+              "host": ["{{baseUrl}}"],
+              "path": ["dogservices", "search"]
+            }
+          }
+        },
+        {
+          "name": "Search with Category Filter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{idToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"dog\",\n  \"category\": \"Training\",\n  \"limit\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dogservices/search",
+              "host": ["{{baseUrl}}"],
+              "path": ["dogservices", "search"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
