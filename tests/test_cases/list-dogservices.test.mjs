@@ -49,14 +49,14 @@ describe('Given an authenticated user', () => {
     })
 
     it('should filter by category when provided', async () => {
-      const result = await invokeListDogservices({ category: 'Grooming' }, user)
+      const result = await invokeListDogservices({ category: 'grooming' }, user)
 
       expect(result.statusCode).toBe(200)
       expect(result.body).toHaveProperty('items')
 
       // All returned items should have the requested category
       result.body.items.forEach(item => {
-        expect(item.category).toBe('Grooming')
+        expect(item.category).toBe('grooming')
       })
     })
 

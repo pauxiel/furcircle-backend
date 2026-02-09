@@ -65,14 +65,14 @@ describe('Given an authenticated user', () => {
     it('should filter by category', async () => {
       const result = await invokeSearchDogservices({
         query: 'dog',
-        category: 'Training'
+        category: 'training-behaviour'
       }, user)
 
       expect(result.statusCode).toBe(200)
 
-      // All results should be in Training category
+      // All results should be in training-behaviour category
       result.body.items.forEach(item => {
-        expect(item.category).toBe('Training')
+        expect(item.category).toBe('training-behaviour')
       })
     })
 

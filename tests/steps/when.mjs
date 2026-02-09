@@ -259,10 +259,101 @@ const invokeHttpDeleteDogservice = async (id) => {
   }
 }
 
+/**
+ * Invoke list categories
+ */
+const invokeListCategories = async (user = null) => {
+  if (mode === 'handler') {
+    return invokeHandlerListCategories()
+  } else {
+    return invokeHttpListCategories(user)
+  }
+}
+
+const invokeHandlerListCategories = async () => {
+  const { handler } = await import('../../functions/categories/list.mjs')
+
+  const response = await handler({})
+  const body = JSON.parse(response.body)
+
+  return {
+    statusCode: response.statusCode,
+    body
+  }
+}
+
+const invokeHttpListCategories = async (user) => {
+  const url = process.env.API_ENDPOINT + '/categories'
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${user.idToken}`
+    }
+  })
+
+  const body = await response.json()
+
+  return {
+    statusCode: response.status,
+    body
+  }
+}
+
+/**
+ * Invoke get single category with its services
+ */
+const invokeGetCategory = async (slug, queryParams = {}, user = null) => {
+  if (mode === 'handler') {
+    return invokeHandlerGetCategory(slug, queryParams)
+  } else {
+    return invokeHttpGetCategory(slug, queryParams, user)
+  }
+}
+
+const invokeHandlerGetCategory = async (slug, queryParams = {}) => {
+  const { handler } = await import('../../functions/categories/get.mjs')
+
+  const event = {
+    pathParameters: { slug },
+    queryStringParameters: Object.keys(queryParams).length > 0 ? queryParams : null
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return {
+    statusCode: response.statusCode,
+    body
+  }
+}
+
+const invokeHttpGetCategory = async (slug, queryParams = {}, user) => {
+  const queryString = new URLSearchParams(queryParams).toString()
+  const baseUrl = process.env.API_ENDPOINT + '/categories/' + slug
+  const url = queryString ? baseUrl + '?' + queryString : baseUrl
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${user.idToken}`
+    }
+  })
+
+  const body = await response.json()
+
+  return {
+    statusCode: response.status,
+    body
+  }
+}
+
 export {
   invokeListDogservices,
   invokeGetDogservice,
   invokeSearchDogservices,
   invokeCreateDogservice,
-  invokeDeleteDogservice
+  invokeDeleteDogservice,
+  invokeListCategories,
+  invokeGetCategory
 }

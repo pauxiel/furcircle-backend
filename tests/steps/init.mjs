@@ -15,13 +15,18 @@ const init = async () => {
   if (!process.env.DOGS_SERVICES_TABLE) {
     throw new Error('DOGS_SERVICES_TABLE environment variable is not set')
   }
-  
+
+  if (!process.env.SERVICE_CATEGORIES_TABLE) {
+    throw new Error('SERVICE_CATEGORIES_TABLE environment variable is not set')
+  }
+
   if (!process.env.API_ENDPOINT) {
     throw new Error('API_ENDPOINT environment variable is not set')
   }
 
   return {
     tableName: process.env.DOGS_SERVICES_TABLE,
+    categoriesTableName: process.env.SERVICE_CATEGORIES_TABLE,
     apiEndpoint: process.env.API_ENDPOINT,
     dynamodb
   }
