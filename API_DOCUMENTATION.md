@@ -36,7 +36,7 @@ https://furcircle-dogservices-api-dev.auth.us-east-1.amazoncognito.com/login?cli
 **Query Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `category` | string | No | Filter by category (e.g., "Grooming", "Veterinary") |
+| `category` | string | No | Filter by category slug (e.g., "grooming", "daycare") |
 | `limit` | number | No | Max items to return (default: 20, max: 100) |
 
 **Headers:**
@@ -49,15 +49,16 @@ Authorization: Bearer <ID_TOKEN>
 {
   "items": [
     {
-      "id": "service-001",
-      "name": "Pawfect Grooming Spa",
-      "category": "Grooming",
-      "description": "Full-service grooming including bath, haircut...",
-      "price": 45.00,
+      "id": "uuid-string",
+      "name": "Happy Paws Grooming",
+      "category": "grooming",
+      "description": "Professional dog grooming services...",
+      "price": "$$",
       "rating": 4.8,
+      "reviewCount": 185,
       "image": "https://images.unsplash.com/...",
-      "location": "123 Pet Street, Dog City, DC 12345",
-      "phone": "(555) 123-4567"
+      "location": "Lagos, Nigeria",
+      "phone": "+234 801 234 5678"
     }
   ],
   "count": 10,
@@ -80,15 +81,16 @@ Authorization: Bearer <ID_TOKEN>
 **Response:**
 ```json
 {
-  "id": "service-001",
-  "name": "Pawfect Grooming Spa",
-  "category": "Grooming",
-  "description": "...",
-  "price": 45.00,
+  "id": "uuid-string",
+  "name": "Happy Paws Grooming",
+  "category": "grooming",
+  "description": "Professional dog grooming services...",
+  "price": "$$",
   "rating": 4.8,
-  "image": "...",
-  "location": "...",
-  "phone": "..."
+  "reviewCount": 185,
+  "image": "https://images.unsplash.com/...",
+  "location": "Lagos, Nigeria",
+  "phone": "+234 801 234 5678"
 }
 ```
 
@@ -109,14 +111,14 @@ Content-Type: application/json
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `query` | string | Yes | Search term (searches name and description) |
-| `category` | string | No | Filter by category |
+| `category` | string | No | Filter by category slug (e.g., "grooming") |
 | `limit` | number | No | Max items to return (default: 20, max: 100) |
 
 **Request Example:**
 ```json
 {
   "query": "grooming",
-  "category": "Grooming",
+  "category": "grooming",
   "limit": 10
 }
 ```
@@ -126,12 +128,13 @@ Content-Type: application/json
 {
   "items": [
     {
-      "id": "service-001",
+      "id": "uuid-string",
       "name": "Happy Paws Grooming",
-      "category": "Grooming",
+      "category": "grooming",
       "description": "Professional dog grooming services...",
       "price": "$$",
       "rating": 4.8,
+      "reviewCount": 185,
       "image": "https://images.unsplash.com/...",
       "location": "Lagos, Nigeria",
       "phone": "+234 801 234 5678"
@@ -139,7 +142,7 @@ Content-Type: application/json
   ],
   "count": 1,
   "query": "grooming",
-  "category": "Grooming"
+  "category": "grooming"
 }
 ```
 
@@ -154,7 +157,7 @@ Content-Type: application/json
 ```json
 {
   "name": "Service Name",
-  "category": "Grooming",
+  "category": "grooming",
   "description": "Service description",
   "price": 50.00,
   "rating": 4.5,
@@ -180,15 +183,118 @@ Content-Type: application/json
 
 ---
 
+### 7. List Service Categories
+**GET** `/categories`
+
+**Authorization:** Cognito ID Token required
+
+**Headers:**
+```
+Authorization: Bearer <ID_TOKEN>
+```
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "slug": "essential-care",
+      "name": "Essential Care",
+      "description": "Daily wellness for your dog",
+      "icon": "essential-care",
+      "sortOrder": 1,
+      "createdAt": "2026-02-08T...",
+      "updatedAt": "2026-02-08T..."
+    },
+    {
+      "slug": "daycare",
+      "name": "Daycare",
+      "description": "Full & supervised play",
+      "icon": "daycare",
+      "sortOrder": 2
+    }
+  ],
+  "count": 9
+}
+```
+
+---
+
+### 8. Get Category with Services
+**GET** `/categories/{slug}`
+
+**Authorization:** Cognito ID Token required
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `slug` | string | Category slug (e.g., "daycare", "grooming") |
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `limit` | number | No | Max services to return (default: 20, max: 100) |
+
+**Response:**
+```json
+{
+  "category": {
+    "slug": "daycare",
+    "name": "Daycare",
+    "description": "Full & supervised play",
+    "icon": "daycare",
+    "sortOrder": 2
+  },
+  "services": [
+    {
+      "id": "uuid-string",
+      "name": "FurEver Friends Daycare",
+      "category": "daycare",
+      "description": "Safe and fun dog daycare...",
+      "price": "$$",
+      "rating": 4.7,
+      "reviewCount": 230,
+      "image": "https://images.unsplash.com/...",
+      "location": "Lagos, Nigeria",
+      "phone": "+234 806 789 0123"
+    }
+  ],
+  "serviceCount": 1
+}
+```
+
+---
+
+### 9. Create Category (Admin Only)
+**POST** `/categories`
+
+**Authorization:** IAM (Admin only)
+
+**Body:**
+```json
+{
+  "name": "Category Name",
+  "slug": "category-slug",
+  "description": "Category description",
+  "icon": "icon-identifier",
+  "sortOrder": 1
+}
+```
+
+---
+
 ## Available Categories
-- Grooming
-- Veterinary
-- Boarding
-- Walking
-- Training
-- Daycare
-- Transport
-- Pet Store
+| Slug | Name | Description |
+|------|------|-------------|
+| `essential-care` | Essential Care | Daily wellness for your dog |
+| `daycare` | Daycare | Full & supervised play |
+| `training-behaviour` | Training & Behaviour | Obedience, skills & behavior shaping |
+| `behavioural-consultations` | Behavioural Consultations | Anxiety, aggression, etc. |
+| `dog-walking` | Dog Walking | Exercise & outdoor adventures |
+| `wellness-health` | Wellness and Health | Check-ups & preventative care |
+| `nutritional-consultation` | Nutritional Consultation | Diet & meal plans |
+| `grooming` | Grooming | Baths, nails & haircuts |
+| `extended-care` | Extended Care | When you're away or need extra help |
 
 ---
 

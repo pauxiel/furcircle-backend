@@ -12,6 +12,7 @@ provider:
 
   environment:
     DOGS_SERVICES_TABLE: !Ref DogServiceTable
+    SERVICE_CATEGORIES_TABLE: !Ref ServiceCategoryTable
     COGNITO_USER_POOL_ID: !Ref CognitoUserPool
     COGNITO_USER_POOL_ARN: !GetAtt CognitoUserPool.Arn
     COGNITO_WEB_CLIENT_ID: !Ref WebCognitoUserPoolClient
@@ -33,6 +34,7 @@ provider:
           Resource:
             - !GetAtt DogServiceTable.Arn
             - !Sub "${DogServiceTable.Arn}/index/*"
+            - !GetAtt ServiceCategoryTable.Arn
 
 functions:
   # GET /dogservices - List all dog services (authenticated users)
@@ -104,6 +106,42 @@ functions:
           cors: true
           authorizer: aws_iam
 
+  # GET /categories - List all service categories (authenticated users)
+  list-categories:
+    handler: functions/categories/list.handler
+    events:
+      - http:
+          path: /categories
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # GET /categories/{slug} - Get a category with its services (authenticated users)
+  get-category:
+    handler: functions/categories/get.handler
+    events:
+      - http:
+          path: /categories/{slug}
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # POST /categories - Create a new category (admin only - IAM auth)
+  create-category:
+    handler: functions/categories/create.handler
+    events:
+      - http:
+          path: /categories
+          method: post
+          cors: true
+          authorizer: aws_iam
+
 resources:
   Resources:
     DogServiceTable:
@@ -126,7 +164,17 @@ resources:
             Projection:
               ProjectionType: ALL
 
-    
+    ServiceCategoryTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: slug
+            AttributeType: S
+        KeySchema:
+          - AttributeName: slug
+            KeyType: HASH
+
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
       Properties:
@@ -297,6 +345,8 @@ resources:
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/dogservices
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/dogservices/*
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/POST/dogservices/search
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/categories
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/categories/*
 
     # Attach roles to Identity Pool
     CognitoIdentityPoolRoleAttachment:
@@ -309,6 +359,8 @@ resources:
   Outputs:
     DogServiceTableName:
       Value: !Ref DogServiceTable
+    ServiceCategoryTableName:
+      Value: !Ref ServiceCategoryTable
     ApiEndpoint:
       Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
 

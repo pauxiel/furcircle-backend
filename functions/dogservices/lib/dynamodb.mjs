@@ -10,3 +10,4 @@ export const dynamodb = DynamoDBDocumentClient.from(client, {
 })
 
 export const TABLE_NAME = process.env.DOGS_SERVICES_TABLE
+export const CATEGORIES_TABLE_NAME = process.env.SERVICE_CATEGORIES_TABLE
