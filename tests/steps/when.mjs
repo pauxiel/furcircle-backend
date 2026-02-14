@@ -348,6 +348,159 @@ const invokeHttpGetCategory = async (slug, queryParams = {}, user) => {
   }
 }
 
+/**
+ * Invoke chatbot chat (send message)
+ * @param {Object} chatParams - { message, conversationId? }
+ * @param {Object} user - Authenticated user with idToken (required for http mode)
+ */
+const invokeChatSend = async (chatParams, user = null) => {
+  if (mode === 'handler') {
+    return invokeHandlerChatSend(chatParams, user)
+  } else {
+    return invokeHttpChatSend(chatParams, user)
+  }
+}
+
+const invokeHandlerChatSend = async (chatParams, user) => {
+  const { handler } = await import('../../functions/chatbot/chat.mjs')
+
+  const event = {
+    body: JSON.stringify(chatParams),
+    requestContext: {
+      authorizer: {
+        claims: { sub: user?.username || 'test-user-id' }
+      }
+    }
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return {
+    statusCode: response.statusCode,
+    body
+  }
+}
+
+const invokeHttpChatSend = async (chatParams, user) => {
+  const url = process.env.API_ENDPOINT + '/chatbot/chat'
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${user.idToken}`
+    },
+    body: JSON.stringify(chatParams)
+  })
+
+  const body = await response.json()
+
+  return {
+    statusCode: response.status,
+    body
+  }
+}
+
+/**
+ * Invoke list conversations
+ */
+const invokeChatConversations = async (user = null) => {
+  if (mode === 'handler') {
+    return invokeHandlerChatConversations(user)
+  } else {
+    return invokeHttpChatConversations(user)
+  }
+}
+
+const invokeHandlerChatConversations = async (user) => {
+  const { handler } = await import('../../functions/chatbot/conversations.mjs')
+
+  const event = {
+    requestContext: {
+      authorizer: {
+        claims: { sub: user?.username || 'test-user-id' }
+      }
+    }
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return {
+    statusCode: response.statusCode,
+    body
+  }
+}
+
+const invokeHttpChatConversations = async (user) => {
+  const url = process.env.API_ENDPOINT + '/chatbot/conversations'
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${user.idToken}`
+    }
+  })
+
+  const body = await response.json()
+
+  return {
+    statusCode: response.status,
+    body
+  }
+}
+
+/**
+ * Invoke get conversation history
+ */
+const invokeChatHistory = async (conversationId, user = null) => {
+  if (mode === 'handler') {
+    return invokeHandlerChatHistory(conversationId, user)
+  } else {
+    return invokeHttpChatHistory(conversationId, user)
+  }
+}
+
+const invokeHandlerChatHistory = async (conversationId, user) => {
+  const { handler } = await import('../../functions/chatbot/history.mjs')
+
+  const event = {
+    pathParameters: { conversationId },
+    requestContext: {
+      authorizer: {
+        claims: { sub: user?.username || 'test-user-id' }
+      }
+    }
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return {
+    statusCode: response.statusCode,
+    body
+  }
+}
+
+const invokeHttpChatHistory = async (conversationId, user) => {
+  const url = process.env.API_ENDPOINT + '/chatbot/history/' + conversationId
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${user.idToken}`
+    }
+  })
+
+  const body = await response.json()
+
+  return {
+    statusCode: response.status,
+    body
+  }
+}
+
 export {
   invokeListDogservices,
   invokeGetDogservice,
@@ -355,5 +508,8 @@ export {
   invokeCreateDogservice,
   invokeDeleteDogservice,
   invokeListCategories,
-  invokeGetCategory
+  invokeGetCategory,
+  invokeChatSend,
+  invokeChatConversations,
+  invokeChatHistory
 }

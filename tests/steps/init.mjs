@@ -24,9 +24,14 @@ const init = async () => {
     throw new Error('API_ENDPOINT environment variable is not set')
   }
 
+  if (!process.env.CHAT_CONVERSATION_TABLE) {
+    throw new Error('CHAT_CONVERSATION_TABLE environment variable is not set')
+  }
+
   return {
     tableName: process.env.DOGS_SERVICES_TABLE,
     categoriesTableName: process.env.SERVICE_CATEGORIES_TABLE,
+    chatConversationTableName: process.env.CHAT_CONVERSATION_TABLE,
     apiEndpoint: process.env.API_ENDPOINT,
     dynamodb
   }

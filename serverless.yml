@@ -13,6 +13,7 @@ provider:
   environment:
     DOGS_SERVICES_TABLE: !Ref DogServiceTable
     SERVICE_CATEGORIES_TABLE: !Ref ServiceCategoryTable
+    CHAT_CONVERSATION_TABLE: !Ref ChatConversationTable
     COGNITO_USER_POOL_ID: !Ref CognitoUserPool
     COGNITO_USER_POOL_ARN: !GetAtt CognitoUserPool.Arn
     COGNITO_WEB_CLIENT_ID: !Ref WebCognitoUserPoolClient
@@ -35,6 +36,12 @@ provider:
             - !GetAtt DogServiceTable.Arn
             - !Sub "${DogServiceTable.Arn}/index/*"
             - !GetAtt ServiceCategoryTable.Arn
+            - !GetAtt ChatConversationTable.Arn
+        - Effect: Allow
+          Action:
+            - bedrock:InvokeModel
+          Resource:
+            - "arn:aws:bedrock:*::foundation-model/*"
 
 functions:
   # GET /dogservices - List all dog services (authenticated users)
@@ -142,6 +149,46 @@ functions:
           cors: true
           authorizer: aws_iam
 
+  # POST /chatbot/chat - Send a message to the pet assistant chatbot
+  chat-send:
+    handler: functions/chatbot/chat.handler
+    timeout: 30
+    events:
+      - http:
+          path: /chatbot/chat
+          method: post
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # GET /chatbot/conversations - List user's conversations
+  chat-conversations:
+    handler: functions/chatbot/conversations.handler
+    events:
+      - http:
+          path: /chatbot/conversations
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # GET /chatbot/history/{conversationId} - Get conversation history
+  chat-history:
+    handler: functions/chatbot/history.handler
+    events:
+      - http:
+          path: /chatbot/history/{conversationId}
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
 resources:
   Resources:
     DogServiceTable:
@@ -174,6 +221,24 @@ resources:
         KeySchema:
           - AttributeName: slug
             KeyType: HASH
+
+    ChatConversationTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: conversationId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: conversationId
+            KeyType: RANGE
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
 
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
@@ -347,6 +412,9 @@ resources:
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/POST/dogservices/search
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/categories
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/categories/*
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/POST/chatbot/chat
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/chatbot/conversations
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/chatbot/history/*
 
     # Attach roles to Identity Pool
     CognitoIdentityPoolRoleAttachment:
@@ -361,6 +429,8 @@ resources:
       Value: !Ref DogServiceTable
     ServiceCategoryTableName:
       Value: !Ref ServiceCategoryTable
+    ChatConversationTableName:
+      Value: !Ref ChatConversationTable
     ApiEndpoint:
       Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
 
