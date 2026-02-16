@@ -24,6 +24,10 @@
         "AWS_REGION": "us-east-1",
         "FASTMCP_LOG_LEVEL": "ERROR"
       }
+    },
+    "serverless": {
+      "command": "npx",
+      "args": ["serverless", "mcp"]
     }
   }
 }
