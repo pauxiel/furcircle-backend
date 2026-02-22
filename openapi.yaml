@@ -1,0 +1,789 @@
+openapi: 3.0.3
+
+info:
+  title: FurCircle API
+  description: |
+    Backend API for the FurCircle pet services marketplace.
+
+    ## Authentication
+    Most endpoints require a **Cognito JWT** token obtained after signing in.
+    Pass it as a Bearer token in the `Authorization` header:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+
+    Admin-only endpoints (create/update/delete) use **AWS IAM Signature Version 4 (SigV4)**.
+    These are intended for internal/admin tooling only and are not accessible to regular users.
+
+  version: 1.0.0
+  contact:
+    name: FurCircle Team
+
+servers:
+  - url: https://88m7wcqc8l.execute-api.us-east-1.amazonaws.com/dev
+    description: Dev environment
+
+tags:
+  - name: Dog Services
+    description: Browse, search, and manage pet services
+  - name: Categories
+    description: Service categories (grooming, training, vet, etc.)
+  - name: Chatbot
+    description: AI-powered pet care assistant (powered by Amazon Bedrock / Claude)
+
+# ---------------------------------------------------------------------------
+# Security Schemes
+# ---------------------------------------------------------------------------
+components:
+  securitySchemes:
+    CognitoAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from Amazon Cognito. Obtain by signing in via the app.
+
+    AwsIamAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: |
+        AWS Signature Version 4 (SigV4). Admin-only endpoints.
+        Use the AWS CLI or an AWS SDK to sign requests with IAM credentials.
+
+  # ---------------------------------------------------------------------------
+  # Reusable Schemas
+  # ---------------------------------------------------------------------------
+  schemas:
+    DogService:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        name:
+          type: string
+          example: "Premium Dog Grooming"
+        category:
+          type: string
+          example: "grooming"
+        description:
+          type: string
+          example: "Full grooming session including bath, trim, and nail clipping."
+        price:
+          type: string
+          example: "$45"
+        rating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+          example: 4.8
+        image:
+          type: string
+          example: "https://example.com/images/grooming.jpg"
+        location:
+          type: string
+          example: "New York, NY"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00.000Z"
+
+    Category:
+      type: object
+      properties:
+        slug:
+          type: string
+          example: "grooming"
+          description: URL-friendly unique identifier
+        name:
+          type: string
+          example: "Grooming"
+        description:
+          type: string
+          example: "Professional grooming services for your dog."
+        icon:
+          type: string
+          example: "scissors"
+        sortOrder:
+          type: integer
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+          example: "user"
+        content:
+          type: string
+          example: "What vaccinations does my puppy need?"
+
+    ConversationSummary:
+      type: object
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+          example: "c1d2e3f4-a5b6-7890-cdef-ab1234567890"
+        title:
+          type: string
+          example: "What vaccinations does my puppy need?"
+          description: Auto-generated from the first 50 characters of the first message
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ConversationDetail:
+      allOf:
+        - $ref: '#/components/schemas/ConversationSummary'
+        - type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/ChatMessage'
+
+    PaginatedDogServices:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DogService'
+        count:
+          type: integer
+          example: 10
+        lastEvaluatedKey:
+          type: object
+          nullable: true
+          description: DynamoDB pagination cursor. Pass this back as a query param in the next request if present.
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Missing required fields: name and category are required"
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+
+  # ==========================================================================
+  # DOG SERVICES
+  # ==========================================================================
+
+  /dogservices:
+    get:
+      tags: [Dog Services]
+      operationId: listDogServices
+      summary: List dog services
+      description: |
+        Returns a paginated list of dog services.
+        Optionally filter by category using the `category` query parameter.
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: category
+          in: query
+          required: false
+          description: Filter by category slug (e.g. `grooming`, `training`)
+          schema:
+            type: string
+            example: grooming
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of results to return (1–100, default 20)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of dog services
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDogServices'
+        '401':
+          description: Unauthorized — missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Dog Services]
+      operationId: createDogService
+      summary: Create a dog service (admin only)
+      description: |
+        Creates a new dog service listing.
+        **Requires AWS IAM authentication** — admin use only.
+      security:
+        - AwsIamAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, category]
+              properties:
+                name:
+                  type: string
+                  example: "Premium Dog Grooming"
+                category:
+                  type: string
+                  example: "grooming"
+                description:
+                  type: string
+                  example: "Full grooming session including bath, trim, and nail clipping."
+                price:
+                  type: string
+                  example: "$45"
+                rating:
+                  type: number
+                  example: 4.8
+                image:
+                  type: string
+                  example: "https://example.com/images/grooming.jpg"
+                location:
+                  type: string
+                  example: "New York, NY"
+      responses:
+        '201':
+          description: Dog service created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DogService'
+        '400':
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden — IAM credentials required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dogservices/search:
+    post:
+      tags: [Dog Services]
+      operationId: searchDogServices
+      summary: Search dog services
+      description: |
+        Full-text search across service `name` and `description` fields.
+        Optionally narrow results by category.
+        Note: Search is case-sensitive.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  description: Search term (case-sensitive)
+                  example: "grooming"
+                category:
+                  type: string
+                  description: Optional category filter
+                  example: "grooming"
+                limit:
+                  type: integer
+                  description: Maximum results to return (1–100, default 20)
+                  default: 20
+                  minimum: 1
+                  maximum: 100
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DogService'
+                  count:
+                    type: integer
+                    example: 3
+                  query:
+                    type: string
+                    example: "grooming"
+                  category:
+                    type: string
+                    nullable: true
+                    example: "grooming"
+        '400':
+          description: Search query is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dogservices/{id}:
+    get:
+      tags: [Dog Services]
+      operationId: getDogService
+      summary: Get a dog service by ID
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the dog service
+          schema:
+            type: string
+            format: uuid
+            example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      responses:
+        '200':
+          description: Dog service found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DogService'
+        '404':
+          description: Dog service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags: [Dog Services]
+      operationId: updateDogService
+      summary: Update a dog service (admin only)
+      description: |
+        Partially updates a dog service. Only the fields provided in the body will be updated.
+        **Requires AWS IAM authentication** — admin use only.
+      security:
+        - AwsIamAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the dog service to update
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        description: At least one field must be provided.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                category:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: string
+                rating:
+                  type: number
+                image:
+                  type: string
+                location:
+                  type: string
+      responses:
+        '200':
+          description: Updated dog service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DogService'
+        '400':
+          description: No fields to update, or missing ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Dog service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden — IAM credentials required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Dog Services]
+      operationId: deleteDogService
+      summary: Delete a dog service (admin only)
+      description: |
+        Permanently deletes a dog service.
+        **Requires AWS IAM authentication** — admin use only.
+      security:
+        - AwsIamAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the dog service to delete
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dog service deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Dog service deleted successfully"
+        '404':
+          description: Dog service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden — IAM credentials required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==========================================================================
+  # CATEGORIES
+  # ==========================================================================
+
+  /categories:
+    get:
+      tags: [Categories]
+      operationId: listCategories
+      summary: List all categories
+      description: Returns all service categories sorted by `sortOrder`.
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  count:
+                    type: integer
+                    example: 5
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Categories]
+      operationId: createCategory
+      summary: Create a category (admin only)
+      description: |
+        Creates a new service category.
+        **Requires AWS IAM authentication** — admin use only.
+      security:
+        - AwsIamAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug]
+              properties:
+                name:
+                  type: string
+                  example: "Grooming"
+                slug:
+                  type: string
+                  example: "grooming"
+                  description: URL-friendly identifier, must be unique
+                description:
+                  type: string
+                  example: "Professional grooming services for your dog."
+                icon:
+                  type: string
+                  example: "scissors"
+                sortOrder:
+                  type: integer
+                  default: 0
+                  example: 1
+      responses:
+        '201':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden — IAM credentials required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{slug}:
+    get:
+      tags: [Categories]
+      operationId: getCategory
+      summary: Get a category with its services
+      description: Returns a single category along with all dog services that belong to it.
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: The category slug (e.g. `grooming`)
+          schema:
+            type: string
+            example: grooming
+      responses:
+        '200':
+          description: Category with its services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  category:
+                    $ref: '#/components/schemas/Category'
+                  services:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DogService'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==========================================================================
+  # CHATBOT
+  # ==========================================================================
+
+  /chatbot/chat:
+    post:
+      tags: [Chatbot]
+      operationId: sendChatMessage
+      summary: Send a message to the pet assistant
+      description: |
+        Sends a message to FurCircle's AI pet care assistant (powered by Amazon Bedrock / Claude).
+
+        - If no `conversationId` is provided, a **new conversation** is created and a new `conversationId` is returned.
+        - If a `conversationId` is provided, the message is appended to that existing conversation (maintaining context).
+        - Conversations are automatically deleted after **14 days** (TTL).
+
+        The assistant is aware of all FurCircle services and general pet care knowledge (nutrition, health, grooming, training, etc.).
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  example: "What vaccinations does my puppy need at 8 weeks?"
+                conversationId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: |
+                    Omit to start a new conversation.
+                    Pass the `conversationId` returned from a previous chat response to continue the conversation.
+                  example: "c1d2e3f4-a5b6-7890-cdef-ab1234567890"
+      responses:
+        '200':
+          description: Assistant response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversationId:
+                    type: string
+                    format: uuid
+                    description: Use this ID to continue the conversation in future requests.
+                    example: "c1d2e3f4-a5b6-7890-cdef-ab1234567890"
+                  message:
+                    type: string
+                    description: The assistant's reply
+                    example: "At 8 weeks, your puppy should receive the first dose of the DHPP combination vaccine..."
+        '400':
+          description: Message is required or empty
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error (e.g. Bedrock unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /chatbot/conversations:
+    get:
+      tags: [Chatbot]
+      operationId: listConversations
+      summary: List user's conversations
+      description: |
+        Returns a summary list of all conversations for the authenticated user.
+        Results are ordered by most recently updated.
+        Full message history is **not** included — use `/chatbot/history/{conversationId}` for that.
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: List of conversation summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConversationSummary'
+                  count:
+                    type: integer
+                    example: 3
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /chatbot/history/{conversationId}:
+    get:
+      tags: [Chatbot]
+      operationId: getConversationHistory
+      summary: Get full conversation history
+      description: |
+        Returns a single conversation with its full message history (all user and assistant messages).
+        Only the owner of the conversation can access it.
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          description: UUID of the conversation
+          schema:
+            type: string
+            format: uuid
+            example: "c1d2e3f4-a5b6-7890-cdef-ab1234567890"
+      responses:
+        '200':
+          description: Full conversation with message history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetail'
+        '404':
+          description: Conversation not found or does not belong to this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
