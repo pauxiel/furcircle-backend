@@ -24,6 +24,29 @@ servers:
     description: Dev environment
 
 tags:
+  - name: Authentication
+    description: |
+      Authentication is handled by **Amazon Cognito** — not by the FurCircle API Gateway.
+      The endpoints in this section hit the Cognito User Pools API directly.
+
+      **Base URL for all auth calls:**
+      ```
+      https://cognito-idp.us-east-1.amazonaws.com/
+      ```
+
+      **Required header on every auth request:**
+      ```
+      Content-Type: application/x-amz-json-1.1
+      ```
+
+      **ClientId (use in every request body):** `50sjjavobi0e2q9kndlh3mfuk7`
+
+      **Typical flow:**
+      1. `POST /auth/signup` → create account
+      2. `POST /auth/confirm` → verify email (code sent to inbox)
+      3. `POST /auth/signin` → receive `IdToken`, `AccessToken`, `RefreshToken`
+      4. Use `IdToken` as `Authorization: Bearer <IdToken>` on all FurCircle API calls
+
   - name: Dog Services
     description: Browse, search, and manage pet services
   - name: Categories
@@ -787,3 +810,390 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  # ==========================================================================
+  # AUTHENTICATION (Amazon Cognito)
+  # These endpoints are served by Cognito, not by the FurCircle API Gateway.
+  # ==========================================================================
+
+  /auth/signup:
+    post:
+      tags: [Authentication]
+      operationId: signUp
+      security: []
+      summary: Create a new account
+      description: |
+        Registers a new user with email and password.
+        After sign-up, Cognito sends a **verification code** to the user's email.
+        The user **cannot sign in** until they confirm their email (see `/auth/confirm`).
+      servers:
+        - url: https://cognito-idp.us-east-1.amazonaws.com
+          description: Amazon Cognito User Pools API
+      parameters:
+        - name: X-Amz-Target
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [AmazonCognitoIdentityProviderService.SignUp]
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [application/x-amz-json-1.1]
+      requestBody:
+        required: true
+        content:
+          application/x-amz-json-1.1:
+            schema:
+              type: object
+              required: [ClientId, Username, Password, UserAttributes]
+              properties:
+                ClientId:
+                  type: string
+                  example: "50sjjavobi0e2q9kndlh3mfuk7"
+                  description: The FurCircle web app client ID
+                Username:
+                  type: string
+                  format: email
+                  example: "john.doe@example.com"
+                Password:
+                  type: string
+                  example: "SecurePass1!"
+                  description: Min 8 chars — must include uppercase, lowercase, number, and symbol
+                UserAttributes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      Name:
+                        type: string
+                      Value:
+                        type: string
+                  example:
+                    - Name: email
+                      Value: "john.doe@example.com"
+                    - Name: given_name
+                      Value: "John"
+                    - Name: family_name
+                      Value: "Doe"
+      responses:
+        '200':
+          description: User created. Verification code sent to email.
+          content:
+            application/x-amz-json-1.1:
+              schema:
+                type: object
+                properties:
+                  UserSub:
+                    type: string
+                    format: uuid
+                    description: The new user's unique ID (Cognito sub)
+                  UserConfirmed:
+                    type: boolean
+                    example: false
+        '400':
+          description: Invalid password, duplicate email, or missing required attributes
+
+  /auth/confirm:
+    post:
+      tags: [Authentication]
+      operationId: confirmSignUp
+      security: []
+      summary: Confirm email with verification code
+      description: |
+        Confirms the user's email using the 6-digit code sent by Cognito after sign-up.
+        The user **cannot sign in** until this step is completed.
+      servers:
+        - url: https://cognito-idp.us-east-1.amazonaws.com
+          description: Amazon Cognito User Pools API
+      parameters:
+        - name: X-Amz-Target
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [AmazonCognitoIdentityProviderService.ConfirmSignUp]
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [application/x-amz-json-1.1]
+      requestBody:
+        required: true
+        content:
+          application/x-amz-json-1.1:
+            schema:
+              type: object
+              required: [ClientId, Username, ConfirmationCode]
+              properties:
+                ClientId:
+                  type: string
+                  example: "50sjjavobi0e2q9kndlh3mfuk7"
+                Username:
+                  type: string
+                  format: email
+                  example: "john.doe@example.com"
+                ConfirmationCode:
+                  type: string
+                  example: "123456"
+                  description: 6-digit code sent to the user's email
+      responses:
+        '200':
+          description: Email confirmed. User can now sign in.
+        '400':
+          description: Incorrect or expired confirmation code
+
+  /auth/signin:
+    post:
+      tags: [Authentication]
+      operationId: signIn
+      security: []
+      summary: Sign in and get JWT tokens
+      description: |
+        Authenticates the user and returns JWT tokens.
+
+        Use the **`IdToken`** as the Bearer token on all FurCircle API calls:
+        ```
+        Authorization: Bearer <IdToken>
+        ```
+
+        The `IdToken` expires after **1 hour**. Use the `RefreshToken` to get a new one without signing in again (see `/auth/refresh`).
+      servers:
+        - url: https://cognito-idp.us-east-1.amazonaws.com
+          description: Amazon Cognito User Pools API
+      parameters:
+        - name: X-Amz-Target
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [AmazonCognitoIdentityProviderService.InitiateAuth]
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [application/x-amz-json-1.1]
+      requestBody:
+        required: true
+        content:
+          application/x-amz-json-1.1:
+            schema:
+              type: object
+              required: [AuthFlow, ClientId, AuthParameters]
+              properties:
+                AuthFlow:
+                  type: string
+                  enum: [USER_PASSWORD_AUTH]
+                ClientId:
+                  type: string
+                  example: "50sjjavobi0e2q9kndlh3mfuk7"
+                AuthParameters:
+                  type: object
+                  required: [USERNAME, PASSWORD]
+                  properties:
+                    USERNAME:
+                      type: string
+                      format: email
+                      example: "john.doe@example.com"
+                    PASSWORD:
+                      type: string
+                      example: "SecurePass1!"
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/x-amz-json-1.1:
+              schema:
+                type: object
+                properties:
+                  AuthenticationResult:
+                    type: object
+                    properties:
+                      IdToken:
+                        type: string
+                        description: "Use as 'Authorization: Bearer {IdToken}' on all API calls"
+                      AccessToken:
+                        type: string
+                      RefreshToken:
+                        type: string
+                        description: Store securely — use to refresh when IdToken expires
+                      ExpiresIn:
+                        type: integer
+                        example: 3600
+                        description: Token lifetime in seconds (1 hour)
+                      TokenType:
+                        type: string
+                        example: Bearer
+        '400':
+          description: Incorrect username or password, or user not confirmed
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      operationId: refreshToken
+      security: []
+      summary: Refresh an expired IdToken
+      description: |
+        Uses the `RefreshToken` to obtain a new `IdToken` and `AccessToken` without requiring
+        the user to sign in again. Call this when the `IdToken` has expired (after 1 hour).
+      servers:
+        - url: https://cognito-idp.us-east-1.amazonaws.com
+          description: Amazon Cognito User Pools API
+      parameters:
+        - name: X-Amz-Target
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [AmazonCognitoIdentityProviderService.InitiateAuth]
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [application/x-amz-json-1.1]
+      requestBody:
+        required: true
+        content:
+          application/x-amz-json-1.1:
+            schema:
+              type: object
+              required: [AuthFlow, ClientId, AuthParameters]
+              properties:
+                AuthFlow:
+                  type: string
+                  enum: [REFRESH_TOKEN_AUTH]
+                ClientId:
+                  type: string
+                  example: "50sjjavobi0e2q9kndlh3mfuk7"
+                AuthParameters:
+                  type: object
+                  required: [REFRESH_TOKEN]
+                  properties:
+                    REFRESH_TOKEN:
+                      type: string
+                      description: The RefreshToken received at sign-in
+      responses:
+        '200':
+          description: New tokens issued
+          content:
+            application/x-amz-json-1.1:
+              schema:
+                type: object
+                properties:
+                  AuthenticationResult:
+                    type: object
+                    properties:
+                      IdToken:
+                        type: string
+                      AccessToken:
+                        type: string
+                      ExpiresIn:
+                        type: integer
+                        example: 3600
+        '400':
+          description: Refresh token is invalid or expired — user must sign in again
+
+  /auth/forgot-password:
+    post:
+      tags: [Authentication]
+      operationId: forgotPassword
+      security: []
+      summary: Request a password reset code
+      description: |
+        Sends a 6-digit password reset code to the user's email.
+        Use the code with `/auth/reset-password` to set a new password.
+      servers:
+        - url: https://cognito-idp.us-east-1.amazonaws.com
+          description: Amazon Cognito User Pools API
+      parameters:
+        - name: X-Amz-Target
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [AmazonCognitoIdentityProviderService.ForgotPassword]
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [application/x-amz-json-1.1]
+      requestBody:
+        required: true
+        content:
+          application/x-amz-json-1.1:
+            schema:
+              type: object
+              required: [ClientId, Username]
+              properties:
+                ClientId:
+                  type: string
+                  example: "50sjjavobi0e2q9kndlh3mfuk7"
+                Username:
+                  type: string
+                  format: email
+                  example: "john.doe@example.com"
+      responses:
+        '200':
+          description: Reset code sent to email
+        '400':
+          description: User not found or email not confirmed
+
+  /auth/reset-password:
+    post:
+      tags: [Authentication]
+      operationId: resetPassword
+      security: []
+      summary: Set a new password using reset code
+      description: |
+        Resets the user's password using the 6-digit code received from `/auth/forgot-password`.
+        After a successful reset, the user can sign in with the new password.
+      servers:
+        - url: https://cognito-idp.us-east-1.amazonaws.com
+          description: Amazon Cognito User Pools API
+      parameters:
+        - name: X-Amz-Target
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [AmazonCognitoIdentityProviderService.ConfirmForgotPassword]
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [application/x-amz-json-1.1]
+      requestBody:
+        required: true
+        content:
+          application/x-amz-json-1.1:
+            schema:
+              type: object
+              required: [ClientId, Username, ConfirmationCode, Password]
+              properties:
+                ClientId:
+                  type: string
+                  example: "50sjjavobi0e2q9kndlh3mfuk7"
+                Username:
+                  type: string
+                  format: email
+                  example: "john.doe@example.com"
+                ConfirmationCode:
+                  type: string
+                  example: "123456"
+                  description: 6-digit code sent to email
+                Password:
+                  type: string
+                  example: "NewSecurePass1!"
+                  description: New password — must meet the same complexity requirements as sign-up
+      responses:
+        '200':
+          description: Password reset successfully. User can now sign in with the new password.
+        '400':
+          description: Incorrect or expired reset code
