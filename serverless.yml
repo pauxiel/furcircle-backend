@@ -14,6 +14,8 @@ provider:
     DOGS_SERVICES_TABLE: !Ref DogServiceTable
     SERVICE_CATEGORIES_TABLE: !Ref ServiceCategoryTable
     CHAT_CONVERSATION_TABLE: !Ref ChatConversationTable
+    DOG_BUSINESS_TABLE: !Ref DogBusinessTable
+    BOOKING_TABLE: !Ref BookingTable
     COGNITO_USER_POOL_ID: !Ref CognitoUserPool
     COGNITO_USER_POOL_ARN: !GetAtt CognitoUserPool.Arn
     COGNITO_WEB_CLIENT_ID: !Ref WebCognitoUserPoolClient
@@ -37,6 +39,10 @@ provider:
             - !Sub "${DogServiceTable.Arn}/index/*"
             - !GetAtt ServiceCategoryTable.Arn
             - !GetAtt ChatConversationTable.Arn
+            - !GetAtt DogBusinessTable.Arn
+            - !Sub "${DogBusinessTable.Arn}/index/*"
+            - !GetAtt BookingTable.Arn
+            - !Sub "${BookingTable.Arn}/index/*"
         - Effect: Allow
           Action:
             - bedrock:InvokeModel
@@ -149,6 +155,81 @@ functions:
           cors: true
           authorizer: aws_iam
 
+  # POST /businesses - Create a new business (admin only - IAM auth)
+  create-business:
+    handler: functions/businesses/create.handler
+    events:
+      - http:
+          path: /businesses
+          method: post
+          cors: true
+          authorizer: aws_iam
+
+  # GET /businesses/me - Get own business profile (business owner - Cognito auth)
+  get-my-business:
+    handler: functions/businesses/me.handler
+    events:
+      - http:
+          path: /businesses/me
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # PUT /businesses/{businessId} - Update business profile (business owner - Cognito auth)
+  update-business:
+    handler: functions/businesses/update.handler
+    events:
+      - http:
+          path: /businesses/{businessId}
+          method: put
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # POST /bookings - Create a booking (pet owner - Cognito auth)
+  create-booking:
+    handler: functions/bookings/create.handler
+    events:
+      - http:
+          path: /bookings
+          method: post
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # GET /bookings - List own bookings (pet owner - Cognito auth)
+  list-bookings:
+    handler: functions/bookings/list.handler
+    events:
+      - http:
+          path: /bookings
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # GET /bookings/business - List bookings for business (business owner - Cognito auth)
+  list-business-bookings:
+    handler: functions/bookings/business.handler
+    events:
+      - http:
+          path: /bookings/business
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
   # POST /chatbot/chat - Send a message to the pet assistant chatbot
   chat-send:
     handler: functions/chatbot/chat.handler
@@ -222,6 +303,54 @@ resources:
           - AttributeName: slug
             KeyType: HASH
 
+    DogBusinessTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: businessId
+            AttributeType: S
+          - AttributeName: ownerId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: businessId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: ownerId-index
+            KeySchema:
+              - AttributeName: ownerId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    BookingTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: bookingId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: businessId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: bookingId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: userId-index
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: businessId-index
+            KeySchema:
+              - AttributeName: businessId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
     ChatConversationTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -276,6 +405,20 @@ resources:
             Required: true
             StringAttributeConstraints:
               MinLength: "1"
+
+    UsersGroup:
+      Type: AWS::Cognito::UserPoolGroup
+      Properties:
+        GroupName: Users
+        UserPoolId: !Ref CognitoUserPool
+        Description: Pet owners
+
+    BusinessesGroup:
+      Type: AWS::Cognito::UserPoolGroup
+      Properties:
+        GroupName: Businesses
+        UserPoolId: !Ref CognitoUserPool
+        Description: Dog business owners
 
     # Google Identity Provider
     # To set up: https://console.cloud.google.com/apis/credentials
@@ -415,6 +558,11 @@ resources:
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/POST/chatbot/chat
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/chatbot/conversations
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/chatbot/history/*
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/businesses/me
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/PUT/businesses/*
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/POST/bookings
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/bookings
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/bookings/business
 
     # Attach roles to Identity Pool
     CognitoIdentityPoolRoleAttachment:
@@ -431,6 +579,10 @@ resources:
       Value: !Ref ServiceCategoryTable
     ChatConversationTableName:
       Value: !Ref ChatConversationTable
+    DogBusinessTableName:
+      Value: !Ref DogBusinessTable
+    BookingTableName:
+      Value: !Ref BookingTable
     ApiEndpoint:
       Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
 
