@@ -16,6 +16,7 @@ provider:
     CHAT_CONVERSATION_TABLE: !Ref ChatConversationTable
     DOG_BUSINESS_TABLE: !Ref DogBusinessTable
     BOOKING_TABLE: !Ref BookingTable
+    PET_TABLE: !Ref PetTable
     COGNITO_USER_POOL_ID: !Ref CognitoUserPool
     COGNITO_USER_POOL_ARN: !GetAtt CognitoUserPool.Arn
     COGNITO_WEB_CLIENT_ID: !Ref WebCognitoUserPoolClient
@@ -23,36 +24,18 @@ provider:
     COGNITO_IDENTITY_POOL_ID: !Ref CognitoIdentityPool
     API_ENDPOINT: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
 
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - dynamodb:Scan
-            - dynamodb:Query
-            - dynamodb:GetItem
-            - dynamodb:PutItem
-            - dynamodb:UpdateItem
-            - dynamodb:DeleteItem
-          Resource:
-            - !GetAtt DogServiceTable.Arn
-            - !Sub "${DogServiceTable.Arn}/index/*"
-            - !GetAtt ServiceCategoryTable.Arn
-            - !GetAtt ChatConversationTable.Arn
-            - !GetAtt DogBusinessTable.Arn
-            - !Sub "${DogBusinessTable.Arn}/index/*"
-            - !GetAtt BookingTable.Arn
-            - !Sub "${BookingTable.Arn}/index/*"
-        - Effect: Allow
-          Action:
-            - bedrock:InvokeModel
-          Resource:
-            - "arn:aws:bedrock:*::foundation-model/*"
-
 functions:
   # GET /dogservices - List all dog services (authenticated users)
   list-dogservices:
     handler: functions/dogservices/list.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Scan
+          - dynamodb:Query
+        Resource:
+          - !GetAtt DogServiceTable.Arn
+          - !Sub "${DogServiceTable.Arn}/index/*"
     events:
       - http:
           path: /dogservices
@@ -66,6 +49,12 @@ functions:
   # GET /dogservices/{id} - Get a single dog service (authenticated users)
   get-dogservice:
     handler: functions/dogservices/get.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+        Resource:
+          - !GetAtt DogServiceTable.Arn
     events:
       - http:
           path: /dogservices/{id}
@@ -79,6 +68,12 @@ functions:
   # POST /dogservices/search - Search dog services (authenticated users)
   search-dogservices:
     handler: functions/dogservices/search.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Scan
+        Resource:
+          - !GetAtt DogServiceTable.Arn
     events:
       - http:
           path: /dogservices/search
@@ -92,6 +87,12 @@ functions:
   # POST /dogservices - Create a new dog service (admin only - IAM auth)
   create-dogservice:
     handler: functions/dogservices/create.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+        Resource:
+          - !GetAtt DogServiceTable.Arn
     events:
       - http:
           path: /dogservices
@@ -102,6 +103,13 @@ functions:
   # PUT /dogservices/{id} - Update a dog service (admin only - IAM auth)
   update-dogservice:
     handler: functions/dogservices/update.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+        Resource:
+          - !GetAtt DogServiceTable.Arn
     events:
       - http:
           path: /dogservices/{id}
@@ -112,6 +120,13 @@ functions:
   # DELETE /dogservices/{id} - Delete a dog service (admin only - IAM auth)
   delete-dogservice:
     handler: functions/dogservices/delete.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:DeleteItem
+        Resource:
+          - !GetAtt DogServiceTable.Arn
     events:
       - http:
           path: /dogservices/{id}
@@ -122,6 +137,12 @@ functions:
   # GET /categories - List all service categories (authenticated users)
   list-categories:
     handler: functions/categories/list.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Scan
+        Resource:
+          - !GetAtt ServiceCategoryTable.Arn
     events:
       - http:
           path: /categories
@@ -135,6 +156,17 @@ functions:
   # GET /categories/{slug} - Get a category with its services (authenticated users)
   get-category:
     handler: functions/categories/get.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+        Resource:
+          - !GetAtt ServiceCategoryTable.Arn
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource:
+          - !Sub "${DogServiceTable.Arn}/index/*"
     events:
       - http:
           path: /categories/{slug}
@@ -148,6 +180,12 @@ functions:
   # POST /categories - Create a new category (admin only - IAM auth)
   create-category:
     handler: functions/categories/create.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+        Resource:
+          - !GetAtt ServiceCategoryTable.Arn
     events:
       - http:
           path: /categories
@@ -158,6 +196,12 @@ functions:
   # POST /businesses - Create a new business (admin only - IAM auth)
   create-business:
     handler: functions/businesses/create.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+        Resource:
+          - !GetAtt DogBusinessTable.Arn
     events:
       - http:
           path: /businesses
@@ -168,6 +212,12 @@ functions:
   # GET /businesses/me - Get own business profile (business owner - Cognito auth)
   get-my-business:
     handler: functions/businesses/me.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource:
+          - !Sub "${DogBusinessTable.Arn}/index/*"
     events:
       - http:
           path: /businesses/me
@@ -181,6 +231,17 @@ functions:
   # PUT /businesses/{businessId} - Update business profile (business owner - Cognito auth)
   update-business:
     handler: functions/businesses/update.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource:
+          - !Sub "${DogBusinessTable.Arn}/index/*"
+      - Effect: Allow
+        Action:
+          - dynamodb:UpdateItem
+        Resource:
+          - !GetAtt DogBusinessTable.Arn
     events:
       - http:
           path: /businesses/{businessId}
@@ -194,6 +255,12 @@ functions:
   # POST /bookings - Create a booking (pet owner - Cognito auth)
   create-booking:
     handler: functions/bookings/create.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+        Resource:
+          - !GetAtt BookingTable.Arn
     events:
       - http:
           path: /bookings
@@ -207,6 +274,12 @@ functions:
   # GET /bookings - List own bookings (pet owner - Cognito auth)
   list-bookings:
     handler: functions/bookings/list.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource:
+          - !Sub "${BookingTable.Arn}/index/*"
     events:
       - http:
           path: /bookings
@@ -220,6 +293,13 @@ functions:
   # GET /bookings/business - List bookings for business (business owner - Cognito auth)
   list-business-bookings:
     handler: functions/bookings/business.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource:
+          - !Sub "${DogBusinessTable.Arn}/index/*"
+          - !Sub "${BookingTable.Arn}/index/*"
     events:
       - http:
           path: /bookings/business
@@ -234,6 +314,25 @@ functions:
   chat-send:
     handler: functions/chatbot/chat.handler
     timeout: 30
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+        Resource:
+          - !GetAtt ChatConversationTable.Arn
+      - Effect: Allow
+        Action:
+          - dynamodb:Scan
+        Resource:
+          - !GetAtt DogServiceTable.Arn
+          - !GetAtt ServiceCategoryTable.Arn
+      - Effect: Allow
+        Action:
+          - bedrock:InvokeModel
+        Resource:
+          - "arn:aws:bedrock:*::foundation-model/*"
     events:
       - http:
           path: /chatbot/chat
@@ -247,6 +346,12 @@ functions:
   # GET /chatbot/conversations - List user's conversations
   chat-conversations:
     handler: functions/chatbot/conversations.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource:
+          - !GetAtt ChatConversationTable.Arn
     events:
       - http:
           path: /chatbot/conversations
@@ -260,10 +365,113 @@ functions:
   # GET /chatbot/history/{conversationId} - Get conversation history
   chat-history:
     handler: functions/chatbot/history.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+        Resource:
+          - !GetAtt ChatConversationTable.Arn
     events:
       - http:
           path: /chatbot/history/{conversationId}
           method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # POST /pets - Create a pet profile (pet owner - Cognito auth)
+  create-pet:
+    handler: functions/pets/create.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+        Resource:
+          - !GetAtt PetTable.Arn
+    events:
+      - http:
+          path: /pets
+          method: post
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # GET /pets - List own pet profiles (pet owner - Cognito auth)
+  list-pets:
+    handler: functions/pets/list.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource:
+          - !Sub "${PetTable.Arn}/index/*"
+    events:
+      - http:
+          path: /pets
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # GET /pets/{petId} - Get a single pet profile (pet owner - Cognito auth)
+  get-pet:
+    handler: functions/pets/get.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+        Resource:
+          - !GetAtt PetTable.Arn
+    events:
+      - http:
+          path: /pets/{petId}
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # PUT /pets/{petId} - Update a pet profile (pet owner - Cognito auth)
+  update-pet:
+    handler: functions/pets/update.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+        Resource:
+          - !GetAtt PetTable.Arn
+    events:
+      - http:
+          path: /pets/{petId}
+          method: put
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # DELETE /pets/{petId} - Remove a pet profile (pet owner - Cognito auth)
+  delete-pet:
+    handler: functions/pets/delete.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:DeleteItem
+        Resource:
+          - !GetAtt PetTable.Arn
+    events:
+      - http:
+          path: /pets/{petId}
+          method: delete
           cors: true
           authorizer:
             name: CognitoAuthorizer
@@ -368,6 +576,26 @@ resources:
         TimeToLiveSpecification:
           AttributeName: ttl
           Enabled: true
+
+    PetTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: petId
+            AttributeType: S
+          - AttributeName: ownerId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: petId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: ownerId-index
+            KeySchema:
+              - AttributeName: ownerId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
 
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
@@ -583,6 +811,8 @@ resources:
       Value: !Ref DogBusinessTable
     BookingTableName:
       Value: !Ref BookingTable
+    PetTableName:
+      Value: !Ref PetTable
     ApiEndpoint:
       Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
 
@@ -606,6 +836,7 @@ resources:
 
 plugins:
   - serverless-export-env
+  - serverless-iam-roles-per-function
 
 custom:
   export-env:

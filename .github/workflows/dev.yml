@@ -10,9 +10,67 @@ on:
       - 'package-lock.json'
       - '.github/workflows/dev.yml'
       - 'tests/**'
+      - 'openapi.yaml'
 
 jobs:
+  review:
+    name: Pre-Deploy Code Review
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are a senior backend engineer running a pre-deploy code review for the FurCircle
+            serverless backend (Serverless Framework v4, AWS Lambda, Node.js 20.x ES Modules,
+            DynamoDB, Cognito/IAM auth). See CLAUDE.md for full project conventions.
+
+            Review the changes in this push against the previous commit:
+
+            CHANGED FILES:
+            $(git diff --name-only HEAD~1 HEAD)
+
+            DIFF:
+            $(git diff HEAD~1 HEAD)
+
+            Check for the following. Only flag real issues — avoid noise.
+
+            1. **Tests**: For every new or modified Lambda handler in functions/, does a
+               corresponding test exist in tests/test_cases/? Search the test directory.
+               This is a BLOCKER if missing.
+
+            2. **IAM Roles**: Does every new function in serverless.yml have iamRoleStatements?
+               Are permissions minimal (only the DynamoDB actions the handler actually uses)?
+
+            3. **Handler Pattern**: Do handlers follow the try/catch pattern with response helpers
+               from functions/dogservices/lib/response.mjs? Are .mjs + ESM imports used?
+
+            4. **Auth**: Is userId extracted from event.requestContext.authorizer.claims.sub?
+               Are ownership checks present before mutation endpoints?
+
+            5. **Secrets**: Any hardcoded API keys, tokens, or credentials?
+
+            6. **Docs**: Does openapi.yaml need updating for new/changed endpoints?
+
+            If you find any BLOCKER issues (missing tests, hardcoded secrets, auth bypass),
+            print a clear summary then run: Bash("exit 1") to fail the pipeline.
+
+            If everything looks good, print a short PASS summary.
+
+          claude_args: |
+            --allowedTools "Bash(git diff:*),Bash(git log:*),Bash(exit:*),Read,Glob,Grep"
+
   deploy:
+    name: Deploy & Test
+    needs: review
     concurrency: dev-environment
 
     runs-on: ubuntu-latest

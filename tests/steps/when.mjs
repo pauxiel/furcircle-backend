@@ -501,6 +501,204 @@ const invokeHttpChatHistory = async (conversationId, user) => {
   }
 }
 
+/**
+ * Invoke create pet profile (pet owner - Cognito auth)
+ */
+const invokeCreatePet = async (data, user) => {
+  if (mode === 'handler') {
+    return invokeHandlerCreatePet(data, user)
+  } else {
+    return invokeHttpCreatePet(data, user)
+  }
+}
+
+const invokeHandlerCreatePet = async (data, user) => {
+  const { handler } = await import('../../functions/pets/create.mjs')
+
+  const event = {
+    body: JSON.stringify(data),
+    requestContext: {
+      authorizer: {
+        claims: { sub: user?.username || 'test-user-id' }
+      }
+    }
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return { statusCode: response.statusCode, body }
+}
+
+const invokeHttpCreatePet = async (data, user) => {
+  const response = await fetch(process.env.API_ENDPOINT + '/pets', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${user.idToken}`
+    },
+    body: JSON.stringify(data)
+  })
+
+  return { statusCode: response.status, body: await response.json() }
+}
+
+/**
+ * Invoke list pet profiles (pet owner - Cognito auth)
+ */
+const invokeListPets = async (user) => {
+  if (mode === 'handler') {
+    return invokeHandlerListPets(user)
+  } else {
+    return invokeHttpListPets(user)
+  }
+}
+
+const invokeHandlerListPets = async (user) => {
+  const { handler } = await import('../../functions/pets/list.mjs')
+
+  const event = {
+    requestContext: {
+      authorizer: {
+        claims: { sub: user?.username || 'test-user-id' }
+      }
+    }
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return { statusCode: response.statusCode, body }
+}
+
+const invokeHttpListPets = async (user) => {
+  const response = await fetch(process.env.API_ENDPOINT + '/pets', {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${user.idToken}` }
+  })
+
+  return { statusCode: response.status, body: await response.json() }
+}
+
+/**
+ * Invoke get single pet profile (pet owner - Cognito auth)
+ */
+const invokeGetPet = async (petId, user) => {
+  if (mode === 'handler') {
+    return invokeHandlerGetPet(petId, user)
+  } else {
+    return invokeHttpGetPet(petId, user)
+  }
+}
+
+const invokeHandlerGetPet = async (petId, user) => {
+  const { handler } = await import('../../functions/pets/get.mjs')
+
+  const event = {
+    pathParameters: { petId },
+    requestContext: {
+      authorizer: {
+        claims: { sub: user?.username || 'test-user-id' }
+      }
+    }
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return { statusCode: response.statusCode, body }
+}
+
+const invokeHttpGetPet = async (petId, user) => {
+  const response = await fetch(process.env.API_ENDPOINT + '/pets/' + petId, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${user.idToken}` }
+  })
+
+  return { statusCode: response.status, body: await response.json() }
+}
+
+/**
+ * Invoke update pet profile (pet owner - Cognito auth)
+ */
+const invokeUpdatePet = async (petId, data, user) => {
+  if (mode === 'handler') {
+    return invokeHandlerUpdatePet(petId, data, user)
+  } else {
+    return invokeHttpUpdatePet(petId, data, user)
+  }
+}
+
+const invokeHandlerUpdatePet = async (petId, data, user) => {
+  const { handler } = await import('../../functions/pets/update.mjs')
+
+  const event = {
+    pathParameters: { petId },
+    body: JSON.stringify(data),
+    requestContext: {
+      authorizer: {
+        claims: { sub: user?.username || 'test-user-id' }
+      }
+    }
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return { statusCode: response.statusCode, body }
+}
+
+const invokeHttpUpdatePet = async (petId, data, user) => {
+  const response = await fetch(process.env.API_ENDPOINT + '/pets/' + petId, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${user.idToken}`
+    },
+    body: JSON.stringify(data)
+  })
+
+  return { statusCode: response.status, body: await response.json() }
+}
+
+/**
+ * Invoke delete pet profile (pet owner - Cognito auth)
+ */
+const invokeDeletePet = async (petId, user) => {
+  if (mode === 'handler') {
+    return invokeHandlerDeletePet(petId, user)
+  } else {
+    return invokeHttpDeletePet(petId, user)
+  }
+}
+
+const invokeHandlerDeletePet = async (petId, user) => {
+  const { handler } = await import('../../functions/pets/delete.mjs')
+
+  const event = {
+    pathParameters: { petId },
+    requestContext: {
+      authorizer: {
+        claims: { sub: user?.username || 'test-user-id' }
+      }
+    }
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return { statusCode: response.statusCode, body }
+}
+
+const invokeHttpDeletePet = async (petId, user) => {
+  const response = await fetch(process.env.API_ENDPOINT + '/pets/' + petId, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${user.idToken}` }
+  })
+
+  return { statusCode: response.status, body: await response.json() }
+}
+
 export {
   invokeListDogservices,
   invokeGetDogservice,
@@ -511,5 +709,10 @@ export {
   invokeGetCategory,
   invokeChatSend,
   invokeChatConversations,
-  invokeChatHistory
+  invokeChatHistory,
+  invokeCreatePet,
+  invokeListPets,
+  invokeGetPet,
+  invokeUpdatePet,
+  invokeDeletePet
 }
