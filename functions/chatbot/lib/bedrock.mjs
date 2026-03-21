@@ -2,7 +2,7 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 
 const client = new BedrockRuntimeClient()
 
-const MODEL_ID = 'anthropic.claude-3-sonnet-20240229-v1:0'
+const MODEL_ID = 'anthropic.claude-3-5-haiku-20241022-v1:0'
 const MAX_TOKENS = 1024
 
 export const invokeModel = async (systemPrompt, messages) => {

@@ -66,10 +66,14 @@ export const an_authenticated_user = async () => {
 
   console.log(`[${username}] - responded to auth challenge`)
 
+  const idToken = challengeResp.AuthenticationResult.IdToken
+  const payload = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64url').toString())
+
   return {
     username,
+    sub: payload.sub,
     firstName,
     lastName,
-    idToken: challengeResp.AuthenticationResult.IdToken
+    idToken
   }
 }

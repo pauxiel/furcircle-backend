@@ -209,7 +209,7 @@ Never add actions the handler doesn't use. Never use a global shared role.
 - **`npm run dotEnv` must run before any local test** — tests read `.env` for table names and Cognito IDs exported by the deployed stack; without it they fail with missing env var errors.
 - **IAM propagation delay** — after `sls deploy`, Lambda's new execution role takes ~20s to propagate before tests can succeed. CI handles this with `sleep 20`; locally, wait before running tests.
 - **`TEST_MODE=handler` vs `TEST_MODE=http`** — `handler` mode calls the Lambda function directly in-process (fast, no network); `http` mode hits the real deployed API Gateway endpoint (requires a live deployment).
-- **Bedrock model ID** — Claude 3 Sonnet: `anthropic.claude-3-sonnet-20240229-v1:0`. Bedrock model availability varies by region; only us-east-1 is configured.
+- **Bedrock model ID** — Claude 3.5 Haiku: `anthropic.claude-3-5-haiku-20241022-v1:0`. Bedrock model availability varies by region; only us-east-1 is configured. (Claude 3 Sonnet `20240229` is marked Legacy by AWS and will be blocked if unused for 15+ days.)
 - **ChatConversationTable TTL** — DynamoDB TTL deletion lags by up to 48h after the TTL timestamp expires. Don't rely on exact deletion timing.
 - **DogBusinessTable ownership check** — `ownerId-index` GSI returns the business record; the update handler uses the primary key `businessId`. Always verify the caller's `ownerId` matches before allowing writes (see `businesses/update.mjs`).
 - **Bedrock `chat-send` timeout** — set to 30s in `serverless.yml`; default Lambda timeout is 6s. Don't remove the explicit timeout.
