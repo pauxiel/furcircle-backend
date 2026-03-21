@@ -1,0 +1,39 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    branches: [ main ]
+  issue_comment:
+    types: [ created ]
+
+jobs:
+  claude-review:
+    name: Claude Code Review
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          trigger_phrase: "@claude"
+          custom_instructions: |
+            You are reviewing a pull request for FurCircle — a pet services marketplace backend.
+            Stack: Serverless Framework v4, Node.js 20.x ES Modules, AWS Lambda + DynamoDB + Cognito.
+
+            When asked to review, check for:
+            1. **Ownership verification** — every mutation must verify the caller's Cognito `sub` matches the record's `ownerId` before writing
+            2. **Per-function IAM** — new functions must declare `iamRoleStatements` with only the actions the handler actually calls
+            3. **ESM compliance** — `.mjs` files only, no `require()` or `module.exports`
+            4. **Response helpers** — all responses must use helpers from `functions/dogservices/lib/response.mjs`, never raw API Gateway objects
+            5. **Test coverage** — every new Lambda handler must have a corresponding test in `tests/test_cases/`
+            6. **No secrets** — no hardcoded credentials, tokens, or API keys
+            7. **Auth extraction** — Cognito endpoints must use `event.requestContext.authorizer.claims.sub`, never trust body-supplied user IDs
+
+            Be concise. Flag real issues, skip style nits.
