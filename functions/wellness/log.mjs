@@ -23,8 +23,8 @@ export const handler = async (event) => {
       return badRequest(`pillar must be one of: ${VALID_PILLARS.join(', ')}`)
     }
 
-    if (score === undefined || score === null || score < 0 || score > 100) {
-      return badRequest('score must be a number between 0 and 100')
+    if (score === undefined || score === null || !Number.isInteger(Number(score)) || score < 0 || score > 100) {
+      return badRequest('score must be an integer between 0 and 100')
     }
 
     // Verify pet exists and belongs to this owner

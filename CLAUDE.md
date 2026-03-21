@@ -51,6 +51,8 @@ openapi.yaml            # Full OpenAPI 3.0 spec (keep in sync with serverless.ym
 | `DOG_BUSINESS_TABLE` | DogBusinessTable | `businessId` (PK), GSI: `ownerId-index` |
 | `BOOKING_TABLE` | BookingTable | `bookingId` (PK), GSIs: `userId-index`, `businessId-index` |
 | `CHAT_CONVERSATION_TABLE` | ChatConversationTable | `userId` (PK) + `conversationId` (SK), TTL: 14 days |
+| `PET_TABLE` | PetTable | `petId` (PK), GSI: `ownerId-index` |
+| `WELLNESS_LOG_TABLE` | WellnessLogTable | `logId` (PK), GSI: `petId-index` |
 
 ---
 

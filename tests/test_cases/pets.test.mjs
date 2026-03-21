@@ -22,8 +22,8 @@ describe('Pet Profiles', () => {
       user = await given.an_authenticated_user()
       otherUser = await given.an_authenticated_user()
     } else {
-      user = { username: 'test-user-id' }
-      otherUser = { username: 'other-user-id' }
+      user = { username: 'test-user-id', sub: 'test-user-id' }
+      otherUser = { username: 'other-user-id', sub: 'other-user-id' }
     }
   })
 
@@ -50,7 +50,7 @@ describe('Pet Profiles', () => {
       expect(result.body).toHaveProperty('petId')
       expect(result.body.name).toBe('Max')
       expect(result.body.type).toBe('Dog')
-      expect(result.body.ownerId).toBe(user.sub || user.username)
+      expect(result.body.ownerId).toBe(user.sub)
     })
 
     it('should return 400 when name is missing', async () => {
@@ -78,7 +78,7 @@ describe('Pet Profiles', () => {
       expect(Array.isArray(result.body.items)).toBe(true)
 
       result.body.items.forEach(pet => {
-        expect(pet.ownerId).toBe(user.sub || user.username)
+        expect(pet.ownerId).toBe(user.sub)
       })
     })
 
