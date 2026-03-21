@@ -17,6 +17,7 @@ provider:
     DOG_BUSINESS_TABLE: !Ref DogBusinessTable
     BOOKING_TABLE: !Ref BookingTable
     PET_TABLE: !Ref PetTable
+    WELLNESS_LOG_TABLE: !Ref WellnessLogTable
     COGNITO_USER_POOL_ID: !Ref CognitoUserPool
     COGNITO_USER_POOL_ARN: !GetAtt CognitoUserPool.Arn
     COGNITO_WEB_CLIENT_ID: !Ref WebCognitoUserPoolClient
@@ -478,6 +479,54 @@ functions:
             type: COGNITO_USER_POOLS
             arn: !GetAtt CognitoUserPool.Arn
 
+  # POST /pets/{petId}/wellness - Log a wellness activity for a pet (pet owner - Cognito auth)
+  log-wellness:
+    handler: functions/wellness/log.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+        Resource:
+          - !GetAtt PetTable.Arn
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+        Resource:
+          - !GetAtt WellnessLogTable.Arn
+    events:
+      - http:
+          path: /pets/{petId}/wellness
+          method: post
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # GET /pets/{petId}/wellness - Get wellness summary for a pet (pet owner - Cognito auth)
+  get-wellness:
+    handler: functions/wellness/get.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+        Resource:
+          - !GetAtt PetTable.Arn
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource:
+          - !Sub "${WellnessLogTable.Arn}/index/*"
+    events:
+      - http:
+          path: /pets/{petId}/wellness
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
 resources:
   Resources:
     DogServiceTable:
@@ -593,6 +642,26 @@ resources:
           - IndexName: ownerId-index
             KeySchema:
               - AttributeName: ownerId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    WellnessLogTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: logId
+            AttributeType: S
+          - AttributeName: petId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: logId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: petId-index
+            KeySchema:
+              - AttributeName: petId
                 KeyType: HASH
             Projection:
               ProjectionType: ALL
@@ -813,6 +882,8 @@ resources:
       Value: !Ref BookingTable
     PetTableName:
       Value: !Ref PetTable
+    WellnessLogTableName:
+      Value: !Ref WellnessLogTable
     ApiEndpoint:
       Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
 

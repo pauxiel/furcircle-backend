@@ -699,6 +699,87 @@ const invokeHttpDeletePet = async (petId, user) => {
   return { statusCode: response.status, body: await response.json() }
 }
 
+/**
+ * Invoke log wellness activity (pet owner - Cognito auth)
+ */
+const invokeLogWellness = async (petId, data, user) => {
+  if (mode === 'handler') {
+    return invokeHandlerLogWellness(petId, data, user)
+  } else {
+    return invokeHttpLogWellness(petId, data, user)
+  }
+}
+
+const invokeHandlerLogWellness = async (petId, data, user) => {
+  const { handler } = await import('../../functions/wellness/log.mjs')
+
+  const event = {
+    pathParameters: { petId },
+    body: JSON.stringify(data),
+    requestContext: {
+      authorizer: {
+        claims: { sub: user?.username || 'test-user-id' }
+      }
+    }
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return { statusCode: response.statusCode, body }
+}
+
+const invokeHttpLogWellness = async (petId, data, user) => {
+  const response = await fetch(`${process.env.API_ENDPOINT}/pets/${petId}/wellness`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${user.idToken}`
+    },
+    body: JSON.stringify(data)
+  })
+
+  return { statusCode: response.status, body: await response.json() }
+}
+
+/**
+ * Invoke get wellness summary (pet owner - Cognito auth)
+ */
+const invokeGetWellness = async (petId, user) => {
+  if (mode === 'handler') {
+    return invokeHandlerGetWellness(petId, user)
+  } else {
+    return invokeHttpGetWellness(petId, user)
+  }
+}
+
+const invokeHandlerGetWellness = async (petId, user) => {
+  const { handler } = await import('../../functions/wellness/get.mjs')
+
+  const event = {
+    pathParameters: { petId },
+    requestContext: {
+      authorizer: {
+        claims: { sub: user?.username || 'test-user-id' }
+      }
+    }
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return { statusCode: response.statusCode, body }
+}
+
+const invokeHttpGetWellness = async (petId, user) => {
+  const response = await fetch(`${process.env.API_ENDPOINT}/pets/${petId}/wellness`, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${user.idToken}` }
+  })
+
+  return { statusCode: response.status, body: await response.json() }
+}
+
 export {
   invokeListDogservices,
   invokeGetDogservice,
@@ -714,5 +795,7 @@ export {
   invokeListPets,
   invokeGetPet,
   invokeUpdatePet,
-  invokeDeletePet
+  invokeDeletePet,
+  invokeLogWellness,
+  invokeGetWellness
 }
