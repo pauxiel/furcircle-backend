@@ -312,6 +312,12 @@ components:
           example: "2020-04-15"
         about:
           type: string
+        photo:
+          type: string
+          description: URL to the pet's profile photo
+        medicalInfo:
+          type: string
+          description: Free-text medical notes or conditions
         createdAt:
           type: string
           format: date-time
@@ -1679,6 +1685,12 @@ paths:
                 about:
                   type: string
                   example: "Loves fetch and long walks."
+                photo:
+                  type: string
+                  description: URL to the pet's profile photo
+                medicalInfo:
+                  type: string
+                  description: Free-text medical notes or conditions
       responses:
         '201':
           description: Pet profile created
@@ -1768,6 +1780,10 @@ paths:
                   type: string
                   format: date
                 about:
+                  type: string
+                photo:
+                  type: string
+                medicalInfo:
                   type: string
       responses:
         '200':
