@@ -283,6 +283,92 @@ components:
           type: string
           example: "Missing required fields: name and category are required"
 
+    Pet:
+      type: object
+      properties:
+        petId:
+          type: string
+          format: uuid
+        ownerId:
+          type: string
+        name:
+          type: string
+          example: "Max"
+        type:
+          type: string
+          example: "Dog"
+        breed:
+          type: string
+          example: "Golden Retriever"
+        gender:
+          type: string
+          enum: [Male, Female]
+        weight:
+          type: number
+          example: 21.5
+        birthday:
+          type: string
+          format: date
+          example: "2020-04-15"
+        about:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    WellnessLog:
+      type: object
+      properties:
+        logId:
+          type: string
+          format: uuid
+        petId:
+          type: string
+        ownerId:
+          type: string
+        pillar:
+          type: string
+          enum: [behaviour, nutrition, activity, socialisation]
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        note:
+          type: string
+        loggedAt:
+          type: string
+          format: date-time
+
+    WellnessSummary:
+      type: object
+      properties:
+        petId:
+          type: string
+        overall:
+          type: integer
+          nullable: true
+          description: Average of all logged pillars, null if no logs yet
+        pillars:
+          type: array
+          items:
+            type: object
+            properties:
+              pillar:
+                type: string
+                enum: [behaviour, nutrition, activity, socialisation]
+              score:
+                type: integer
+                nullable: true
+              lastLoggedAt:
+                type: string
+                format: date-time
+                nullable: true
+        totalLogs:
+          type: integer
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -1554,3 +1640,233 @@ paths:
           description: Password reset successfully. User can now sign in with the new password.
         '400':
           description: Incorrect or expired reset code
+
+  /pets:
+    post:
+      tags: [Pet Profiles]
+      operationId: createPet
+      summary: Create a pet profile
+      description: Creates a new pet profile owned by the authenticated user.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type]
+              properties:
+                name:
+                  type: string
+                  example: "Max"
+                type:
+                  type: string
+                  example: "Dog"
+                breed:
+                  type: string
+                  example: "Golden Retriever"
+                gender:
+                  type: string
+                  enum: [Male, Female]
+                weight:
+                  type: number
+                  example: 21.5
+                birthday:
+                  type: string
+                  format: date
+                  example: "2020-04-15"
+                about:
+                  type: string
+                  example: "Loves fetch and long walks."
+      responses:
+        '201':
+          description: Pet profile created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '400':
+          description: Missing required fields
+        '401':
+          description: Unauthorized
+
+    get:
+      tags: [Pet Profiles]
+      operationId: listPets
+      summary: List own pet profiles
+      description: Returns all pet profiles belonging to the authenticated user.
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: List of pets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Pet'
+                  count:
+                    type: integer
+        '401':
+          description: Unauthorized
+
+  /pets/{petId}:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Pet Profiles]
+      operationId: getPet
+      summary: Get a single pet profile
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: Pet profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '403':
+          description: Pet belongs to another user
+        '404':
+          description: Pet not found
+
+    put:
+      tags: [Pet Profiles]
+      operationId: updatePet
+      summary: Update a pet profile
+      description: Updates allowed fields. At least one field must be provided.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                breed:
+                  type: string
+                gender:
+                  type: string
+                  enum: [Male, Female]
+                weight:
+                  type: number
+                birthday:
+                  type: string
+                  format: date
+                about:
+                  type: string
+      responses:
+        '200':
+          description: Updated pet profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '400':
+          description: No updatable fields provided
+        '403':
+          description: Pet belongs to another user
+        '404':
+          description: Pet not found
+
+    delete:
+      tags: [Pet Profiles]
+      operationId: deletePet
+      summary: Delete a pet profile
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: Pet deleted
+        '403':
+          description: Pet belongs to another user
+        '404':
+          description: Pet not found
+
+  /pets/{petId}/wellness:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    post:
+      tags: [Wellness]
+      operationId: logWellness
+      summary: Log a wellness activity for a pet
+      description: |
+        Records a score (0–100) for one of four wellness pillars:
+        `behaviour`, `nutrition`, `activity`, or `socialisation`.
+        Each log is stored independently; the GET summary shows the latest per pillar.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pillar, score]
+              properties:
+                pillar:
+                  type: string
+                  enum: [behaviour, nutrition, activity, socialisation]
+                  example: activity
+                score:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  example: 80
+                note:
+                  type: string
+                  example: "Good walk today"
+      responses:
+        '201':
+          description: Wellness log entry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WellnessLog'
+        '400':
+          description: Invalid pillar or score out of range
+        '403':
+          description: Pet belongs to another user
+        '404':
+          description: Pet not found
+
+    get:
+      tags: [Wellness]
+      operationId: getWellness
+      summary: Get wellness summary for a pet
+      description: |
+        Returns the latest score for each of the four pillars, plus an overall
+        score (average of pillars that have been logged at least once).
+        Pillars not yet logged have `score: null`.
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: Wellness summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WellnessSummary'
+        '403':
+          description: Pet belongs to another user
+        '404':
+          description: Pet not found
