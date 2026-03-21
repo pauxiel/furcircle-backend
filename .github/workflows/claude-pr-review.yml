@@ -20,12 +20,36 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Load reviewer instructions
+      - name: Build review pipeline instructions
         id: instructions
         run: |
-          INSTRUCTIONS=$(cat .claude/agents/pr-reviewer.md)
+          {
+            echo "You are running a four-phase automated review pipeline for this FurCircle PR."
+            echo "Run ALL four phases in order. Post ONE combined report at the end with a section for each phase."
+            echo "Skip the 'npm test' step in Phase 3 — tests are run separately by the deploy pipeline."
+            echo ""
+            echo "================================================================"
+            echo "PHASE 1 — CODE QUALITY REVIEW"
+            echo "================================================================"
+            cat .claude/agents/pr-reviewer.md
+            echo ""
+            echo "================================================================"
+            echo "PHASE 2 — SECURITY REVIEW"
+            echo "================================================================"
+            cat .claude/agents/security-reviewer.md
+            echo ""
+            echo "================================================================"
+            echo "PHASE 3 — PRE-COMMIT CHECKS"
+            echo "================================================================"
+            cat .claude/commands/pre-commit-review.md
+            echo ""
+            echo "================================================================"
+            echo "PHASE 4 — FIX ALL AUTO-FIXABLE ISSUES"
+            echo "================================================================"
+            cat .claude/commands/fix-pr-issues.md
+          } > /tmp/pipeline.txt
           echo "content<<EOF" >> $GITHUB_OUTPUT
-          echo "$INSTRUCTIONS" >> $GITHUB_OUTPUT
+          cat /tmp/pipeline.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - uses: anthropics/claude-code-action@v1
