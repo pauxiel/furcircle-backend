@@ -57,4 +57,4 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           trigger_phrase: "@claude"
-          custom_instructions: ${{ steps.instructions.outputs.content }}
+          prompt: ${{ steps.instructions.outputs.content }}
