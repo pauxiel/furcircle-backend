@@ -311,6 +311,31 @@ functions:
             type: COGNITO_USER_POOLS
             arn: !GetAtt CognitoUserPool.Arn
 
+  # PUT /bookings/{bookingId}/status - Update booking status (business owner - Cognito auth)
+  update-booking-status:
+    handler: functions/bookings/updateStatus.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+        Resource:
+          - !GetAtt BookingTable.Arn
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource:
+          - !Sub "${DogBusinessTable.Arn}/index/*"
+    events:
+      - http:
+          path: /bookings/{bookingId}/status
+          method: put
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
   # POST /chatbot/chat - Send a message to the pet assistant chatbot
   chat-send:
     handler: functions/chatbot/chat.handler

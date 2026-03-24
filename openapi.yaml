@@ -1260,6 +1260,73 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /bookings/{bookingId}/status:
+    put:
+      tags: [Bookings]
+      operationId: updateBookingStatus
+      summary: Update booking status (business owner)
+      description: |
+        Allows a business owner to confirm, reject, or mark a booking as completed.
+        The caller must own the business that the booking was made with — ownership
+        is verified server-side from the Cognito identity.
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [confirmed, rejected, completed]
+                  example: confirmed
+      responses:
+        '200':
+          description: Booking status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bookingId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [confirmed, rejected, completed]
+                  updatedAt:
+                    type: string
+                    format: date-time
+        '400':
+          description: Missing or invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Caller has no business profile or booking belongs to a different business
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   # ==========================================================================
   # AUTHENTICATION (Amazon Cognito)
   # These endpoints are served by Cognito, not by the FurCircle API Gateway.
