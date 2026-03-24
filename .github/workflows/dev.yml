@@ -40,6 +40,82 @@ jobs:
       - name: npm ci
         run: npm ci
 
+      - name: pre-deploy checks
+        run: |
+          echo "--- Check: no .js files in functions/ (ESM only) ---"
+          JS_FILES=$(find functions/ -name "*.js" 2>/dev/null)
+          if [ -n "$JS_FILES" ]; then
+            echo "FAIL: CommonJS .js files found (must use .mjs):"
+            echo "$JS_FILES"
+            exit 1
+          fi
+          echo "PASS"
+
+          echo "--- Check: no .env files committed ---"
+          ENV_FILES=$(git ls-files | grep -E '^\.env')
+          if [ -n "$ENV_FILES" ]; then
+            echo "FAIL: .env files committed to git:"
+            echo "$ENV_FILES"
+            exit 1
+          fi
+          echo "PASS"
+
+          echo "--- Check: every function handler file exists on disk ---"
+          MISSING=""
+          while IFS= read -r handler_path; do
+            FILE="${handler_path%%.*}.mjs"
+            if [ ! -f "$FILE" ]; then
+              MISSING="$MISSING\n  MISSING: $FILE"
+            fi
+          done < <(grep -oP 'handler:\s+\K\S+' serverless.yml | sed 's/\.[^.]*$//')
+          if [ -n "$MISSING" ]; then
+            echo -e "FAIL: handler files referenced in serverless.yml are missing:$MISSING"
+            exit 1
+          fi
+          echo "PASS"
+
+          echo "--- Check: every functions/ domain has a test file ---"
+          MISSING_TESTS=""
+          for domain in functions/*/; do
+            domain_name=$(basename "$domain")
+            if [ "$domain_name" = "dogservices" ]; then continue; fi
+            if ! ls tests/test_cases/${domain_name}*.test.mjs 2>/dev/null | grep -q .; then
+              MISSING_TESTS="$MISSING_TESTS\n  NO TEST: $domain_name"
+            fi
+          done
+          if [ -n "$MISSING_TESTS" ]; then
+            echo -e "FAIL: domains missing test coverage:$MISSING_TESTS"
+            exit 1
+          fi
+          echo "PASS"
+
+          echo "--- Check: openapi.yaml documents all HTTP paths in serverless.yml ---"
+          MISSING_DOCS=""
+          while IFS= read -r path; do
+            if ! grep -qF "$path" openapi.yaml; then
+              MISSING_DOCS="$MISSING_DOCS\n  NOT IN openapi.yaml: $path"
+            fi
+          done < <(grep -oP 'path:\s+\K\S+' serverless.yml | sort -u)
+          if [ -n "$MISSING_DOCS" ]; then
+            echo -e "FAIL: endpoints missing from openapi.yaml:$MISSING_DOCS"
+            exit 1
+          fi
+          echo "PASS"
+
+          echo "--- Check: README.md mentions every DynamoDB table env var ---"
+          MISSING_README=""
+          while IFS= read -r table_var; do
+            if ! grep -qF "$table_var" README.md; then
+              MISSING_README="$MISSING_README\n  NOT IN README.md: $table_var"
+            fi
+          done < <(grep -oP '[A-Z_]+_TABLE(?=:)' serverless.yml | sort -u)
+          if [ -n "$MISSING_README" ]; then
+            echo -e "WARN: table env vars not mentioned in README.md:$MISSING_README"
+          fi
+          echo "PASS (warnings above are non-blocking)"
+
+          echo "--- All pre-deploy checks passed ---"
+
       - name: deploy to dev
         run: npx sls deploy
         env:

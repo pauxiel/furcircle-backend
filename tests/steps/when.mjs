@@ -780,6 +780,49 @@ const invokeHttpGetWellness = async (petId, user) => {
   return { statusCode: response.status, body: await response.json() }
 }
 
+/**
+ * Invoke update booking status (business owner - Cognito auth)
+ */
+const invokeUpdateBookingStatus = async (bookingId, data, user) => {
+  if (mode === 'handler') {
+    return invokeHandlerUpdateBookingStatus(bookingId, data, user)
+  } else {
+    return invokeHttpUpdateBookingStatus(bookingId, data, user)
+  }
+}
+
+const invokeHandlerUpdateBookingStatus = async (bookingId, data, user) => {
+  const { handler } = await import('../../functions/bookings/updateStatus.mjs')
+
+  const event = {
+    pathParameters: { bookingId },
+    body: JSON.stringify(data),
+    requestContext: {
+      authorizer: {
+        claims: { sub: user?.username || 'test-user-id' }
+      }
+    }
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return { statusCode: response.statusCode, body }
+}
+
+const invokeHttpUpdateBookingStatus = async (bookingId, data, user) => {
+  const response = await fetch(`${process.env.API_ENDPOINT}/bookings/${bookingId}/status`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${user.idToken}`
+    },
+    body: JSON.stringify(data)
+  })
+
+  return { statusCode: response.status, body: await response.json() }
+}
+
 export {
   invokeListDogservices,
   invokeGetDogservice,
@@ -797,5 +840,6 @@ export {
   invokeUpdatePet,
   invokeDeletePet,
   invokeLogWellness,
-  invokeGetWellness
+  invokeGetWellness,
+  invokeUpdateBookingStatus
 }
