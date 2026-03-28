@@ -700,6 +700,109 @@ const invokeHttpDeletePet = async (petId, user) => {
 }
 
 /**
+ * Invoke get single booking (pet owner or business owner - Cognito auth)
+ */
+const invokeGetBooking = async (bookingId, user) => {
+  if (mode === 'handler') {
+    return invokeHandlerGetBooking(bookingId, user)
+  } else {
+    return invokeHttpGetBooking(bookingId, user)
+  }
+}
+
+const invokeHandlerGetBooking = async (bookingId, user) => {
+  const { handler } = await import('../../functions/bookings/get.mjs')
+
+  const event = {
+    pathParameters: { bookingId },
+    requestContext: {
+      authorizer: { claims: { sub: user?.username || 'test-user-id' } }
+    }
+  }
+
+  const response = await handler(event)
+  return { statusCode: response.statusCode, body: JSON.parse(response.body) }
+}
+
+const invokeHttpGetBooking = async (bookingId, user) => {
+  const response = await fetch(`${process.env.API_ENDPOINT}/bookings/${bookingId}`, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${user.idToken}` }
+  })
+  return { statusCode: response.status, body: await response.json() }
+}
+
+/**
+ * Invoke cancel booking (pet owner - Cognito auth)
+ */
+const invokeCancelBooking = async (bookingId, user) => {
+  if (mode === 'handler') {
+    return invokeHandlerCancelBooking(bookingId, user)
+  } else {
+    return invokeHttpCancelBooking(bookingId, user)
+  }
+}
+
+const invokeHandlerCancelBooking = async (bookingId, user) => {
+  const { handler } = await import('../../functions/bookings/cancel.mjs')
+
+  const event = {
+    pathParameters: { bookingId },
+    requestContext: {
+      authorizer: { claims: { sub: user?.username || 'test-user-id' } }
+    }
+  }
+
+  const response = await handler(event)
+  return { statusCode: response.statusCode, body: JSON.parse(response.body) }
+}
+
+const invokeHttpCancelBooking = async (bookingId, user) => {
+  const response = await fetch(`${process.env.API_ENDPOINT}/bookings/${bookingId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${user.idToken}` }
+  })
+  return { statusCode: response.status, body: await response.json() }
+}
+
+/**
+ * Invoke create booking (pet owner - Cognito auth)
+ */
+const invokeCreateBooking = async (data, user) => {
+  if (mode === 'handler') {
+    return invokeHandlerCreateBooking(data, user)
+  } else {
+    return invokeHttpCreateBooking(data, user)
+  }
+}
+
+const invokeHandlerCreateBooking = async (data, user) => {
+  const { handler } = await import('../../functions/bookings/create.mjs')
+
+  const event = {
+    body: JSON.stringify(data),
+    requestContext: {
+      authorizer: { claims: { sub: user?.username || 'test-user-id' } }
+    }
+  }
+
+  const response = await handler(event)
+  return { statusCode: response.statusCode, body: JSON.parse(response.body) }
+}
+
+const invokeHttpCreateBooking = async (data, user) => {
+  const response = await fetch(`${process.env.API_ENDPOINT}/bookings`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${user.idToken}`
+    },
+    body: JSON.stringify(data)
+  })
+  return { statusCode: response.status, body: await response.json() }
+}
+
+/**
  * Invoke log wellness activity (pet owner - Cognito auth)
  */
 const invokeLogWellness = async (petId, data, user) => {
@@ -839,6 +942,9 @@ export {
   invokeGetPet,
   invokeUpdatePet,
   invokeDeletePet,
+  invokeCreateBooking,
+  invokeGetBooking,
+  invokeCancelBooking,
   invokeLogWellness,
   invokeGetWellness,
   invokeUpdateBookingStatus
