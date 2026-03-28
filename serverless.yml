@@ -311,6 +311,50 @@ functions:
             type: COGNITO_USER_POOLS
             arn: !GetAtt CognitoUserPool.Arn
 
+  # GET /bookings/{bookingId} - Get single booking (pet owner or business owner - Cognito auth)
+  get-booking:
+    handler: functions/bookings/get.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+        Resource:
+          - !GetAtt BookingTable.Arn
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource:
+          - !Sub "${DogBusinessTable.Arn}/index/*"
+    events:
+      - http:
+          path: /bookings/{bookingId}
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
+  # DELETE /bookings/{bookingId} - Cancel a booking (pet owner - Cognito auth)
+  cancel-booking:
+    handler: functions/bookings/cancel.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+        Resource:
+          - !GetAtt BookingTable.Arn
+    events:
+      - http:
+          path: /bookings/{bookingId}
+          method: delete
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+
   # PUT /bookings/{bookingId}/status - Update booking status (business owner - Cognito auth)
   update-booking-status:
     handler: functions/bookings/updateStatus.handler

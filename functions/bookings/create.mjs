@@ -9,7 +9,7 @@ export const handler = async (event) => {
   try {
     const userId = event.requestContext.authorizer.claims.sub
     const body = JSON.parse(event.body || '{}')
-    const { serviceId, businessId, scheduledAt, notes } = body
+    const { serviceId, businessId, scheduledAt, notes, dropOffTime, pickUpTime, location } = body
 
     if (!serviceId || !businessId || !scheduledAt) {
       return badRequest('Missing required fields: serviceId, businessId, and scheduledAt are required')
@@ -22,6 +22,9 @@ export const handler = async (event) => {
       businessId,
       scheduledAt,
       notes: notes || '',
+      ...(dropOffTime && { dropOffTime }),
+      ...(pickUpTime && { pickUpTime }),
+      ...(location && { location }),
       status: 'pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
