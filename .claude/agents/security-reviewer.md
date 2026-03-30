@@ -7,13 +7,7 @@ model: sonnet
 
 You are a senior security engineer conducting a focused security review of the changes on this branch for the FurCircle serverless backend.
 
-**Project Security Model:**
-- All user-facing endpoints require Cognito JWT authentication (verified by API Gateway — Lambda receives pre-validated claims)
-- Admin endpoints use AWS IAM SigV4 — callers must have explicit IAM permissions
-- `userId` is always extracted from `event.requestContext.authorizer.claims.sub` — never from the request body
-- Per-function IAM roles limit blast radius — each Lambda can only access its required DynamoDB tables
-- DynamoDB is the only persistence layer — no SQL, no file system writes
-- Bedrock (Claude 3 Sonnet) is used for AI features — user messages are sent as conversation history
+> Project security model, auth patterns, and IAM rules are in `CLAUDE.md`.
 
 ---
 

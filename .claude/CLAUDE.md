@@ -14,7 +14,7 @@
 - **Framework**: Serverless Framework v4
 - **Auth**: Two-tier — Cognito JWT (users/business owners) + AWS IAM SigV4 (admin endpoints)
 - **Database**: DynamoDB (5 tables)
-- **AI**: Amazon Bedrock — Claude 3 Sonnet via `@aws-sdk/client-bedrock-runtime`
+- **AI**: Amazon Bedrock — Claude 3.5 Haiku via `@aws-sdk/client-bedrock-runtime`
 - **Tests**: Vitest — two modes: `handler` (unit/integration) and `http` (e2e against deployed API)
 - **Region**: us-east-1
 
@@ -30,16 +30,22 @@ functions/
 │       └── response.mjs   # HTTP helpers: success, created, notFound, badRequest, serverError
 ├── categories/         # Category Lambdas (reuse dogservices/lib/)
 ├── businesses/         # Business owner Lambdas
-├── bookings/           # Booking Lambdas
+├── bookings/           # Booking Lambdas (create, list, get, cancel, updateStatus, business)
+├── pets/               # Pet profile Lambdas (create, list, get, update, delete)
+├── wellness/           # Wellness scoring Lambdas (log, get)
 └── chatbot/            # Bedrock AI Lambdas
     └── lib/
         ├── bedrock.mjs
         └── system-prompt.mjs
 tests/
-├── test_cases/         # Vitest test files (.test.js or .test.mjs)
-└── steps/              # Shared test helpers
+├── test_cases/         # Vitest test files (.test.mjs)
+└── steps/              # Shared test helpers (when.mjs, given.mjs)
 serverless.yml          # Infrastructure + per-function IAM roles (source of truth)
 openapi.yaml            # Full OpenAPI 3.0 spec (keep in sync with serverless.yml)
+.claude/
+├── agents/             # pr-reviewer, security-reviewer
+├── commands/           # pre-commit-review, security-review, fix-pr-issues
+└── skills/             # aws-serverless (Lambda, API Gateway, event-driven patterns)
 ```
 
 ### DynamoDB Tables
