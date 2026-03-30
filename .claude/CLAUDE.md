@@ -1,5 +1,7 @@
 # FurCircle Backend — Claude Code Configuration
 
+@.claude/skills/aws-serverless/SKILL.md
+
 > Pet services marketplace backend. Serverless Framework v4 on AWS.
 > Full API reference: https://pauxiel.github.io/furcircle-backend
 > Deployed API: `https://88m7wcqc8l.execute-api.us-east-1.amazonaws.com/dev`
