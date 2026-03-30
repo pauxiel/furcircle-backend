@@ -8,20 +8,26 @@ const BUSINESS_TABLE = process.env.DOG_BUSINESS_TABLE
 export const handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}')
-    const { name, email, phone, location, description, ownerId } = body
+    const { name, email, phone, location, description, ownerId, businessName, certifications, format, serviceArea, bookingRequirement, verified } = body
 
-    if (!name || !email || !ownerId) {
-      return badRequest('Missing required fields: name, email, and ownerId are required')
+    if (!name || !ownerId) {
+      return badRequest('Missing required fields: name and ownerId are required')
     }
 
     const item = {
       businessId: randomUUID(),
       ownerId,
       name,
-      email,
+      businessName: businessName || '',
+      email: email || '',
       phone: phone || '',
       location: location || '',
+      serviceArea: serviceArea || '',
       description: description || '',
+      certifications: certifications || [],
+      format: format || [],
+      bookingRequirement: bookingRequirement || 'open',
+      verified: verified === true,
       status: 'active',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
