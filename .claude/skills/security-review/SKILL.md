@@ -1,6 +1,7 @@
 ---
+name: security-review
 description: Complete a security review of the pending changes on the current branch. High-confidence vulnerabilities only.
-allowed-tools: Bash(git diff:*), Bash(git status:*), Bash(git log:*), Bash(git show:*), Bash(grep:*), Read, Glob, Grep
+user-invocable: true
 ---
 
 @../../agents/security-reviewer.md

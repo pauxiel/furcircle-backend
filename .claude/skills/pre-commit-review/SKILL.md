@@ -1,6 +1,7 @@
 ---
+name: pre-commit-review
 description: Run a full pre-commit review pipeline on the current changes before committing. Checks tests, code quality, and docs sync.
-allowed-tools: Bash, Read, Glob, Grep, TodoWrite
+user-invocable: true
 ---
 
 Run a full pre-commit review pipeline on the current changes before committing.
