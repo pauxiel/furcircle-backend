@@ -1,6 +1,7 @@
 ---
+name: fix-pr-issues
 description: Run the pr-reviewer agent then automatically fix every issue it finds.
-allowed-tools: Bash, Read, Glob, Grep, Edit, Write, TodoWrite
+user-invocable: true
 ---
 
 Run `@agent-pr-reviewer` on current changes, then fix every auto-fixable issue found.
