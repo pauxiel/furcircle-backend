@@ -41,12 +41,12 @@ jobs:
             echo "================================================================"
             echo "PHASE 3 — PRE-COMMIT CHECKS"
             echo "================================================================"
-            cat .claude/commands/pre-commit-review.md
+            cat .claude/skills/pre-commit-review/SKILL.md
             echo ""
             echo "================================================================"
             echo "PHASE 4 — FIX ALL AUTO-FIXABLE ISSUES"
             echo "================================================================"
-            cat .claude/commands/fix-pr-issues.md
+            cat .claude/skills/fix-pr-issues/SKILL.md
           } > /tmp/pipeline.txt
           echo "content<<EOF" >> $GITHUB_OUTPUT
           cat /tmp/pipeline.txt >> $GITHUB_OUTPUT
