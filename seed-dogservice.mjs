@@ -5,175 +5,270 @@ import { config } from 'dotenv'
 
 config()
 
-const dynamodbClient = new DynamoDB({
-  region: 'us-east-1'
-})
+const dynamodbClient = new DynamoDB({ region: 'us-east-1' })
 const dynamodb = DynamoDBDocumentClient.from(dynamodbClient)
-
 const now = new Date().toISOString()
 
 // ── Service Categories (matching Figma prototype) ──────────────────────────
 const categories = [
-  { slug: 'essential-care', name: 'Essential Care', description: 'Daily wellness for your dog', icon: 'essential-care', sortOrder: 1 },
-  { slug: 'daycare', name: 'Daycare', description: 'Full & supervised play', icon: 'daycare', sortOrder: 2 },
-  { slug: 'training-behaviour', name: 'Training & Behaviour', description: 'Obedience, skills & behavior shaping', icon: 'training-behaviour', sortOrder: 3 },
-  { slug: 'behavioural-consultations', name: 'Behavioural Consultations', description: 'Anxiety, aggression, etc.', icon: 'behavioural-consultations', sortOrder: 4 },
-  { slug: 'dog-walking', name: 'Dog Walking', description: 'Exercise & outdoor adventures', icon: 'dog-walking', sortOrder: 5 },
-  { slug: 'wellness-health', name: 'Wellness and Health', description: 'Check-ups & preventative care', icon: 'wellness-health', sortOrder: 6 },
-  { slug: 'nutritional-consultation', name: 'Nutritional Consultation', description: 'Diet & meal plans', icon: 'nutritional-consultation', sortOrder: 7 },
-  { slug: 'grooming', name: 'Grooming', description: 'Baths, nails & haircuts', icon: 'grooming', sortOrder: 8 },
-  { slug: 'extended-care', name: 'Extended Care', description: 'When you\'re away or need extra help', icon: 'extended-care', sortOrder: 9 }
+  { slug: 'essential-care',              name: 'Essential Care',              description: 'Daily wellness for your dog',                   icon: 'essential-care',              sortOrder: 1 },
+  { slug: 'daycare',                     name: 'Daycare',                     description: 'Full & supervised play',                        icon: 'daycare',                     sortOrder: 2 },
+  { slug: 'training-behaviour',          name: 'Training & Behaviour',        description: 'Obedience, skills & behavior shaping',          icon: 'training-behaviour',          sortOrder: 3 },
+  { slug: 'behavioural-consultations',   name: 'Behavioural Consultations',   description: 'Anxiety, aggression & complex behaviour cases', icon: 'behavioural-consultations',   sortOrder: 4 },
+  { slug: 'dog-walking',                 name: 'Dog Walking',                 description: 'Exercise & outdoor adventures',                 icon: 'dog-walking',                 sortOrder: 5 },
+  { slug: 'wellness-health',             name: 'Wellness and Health',         description: 'Check-ups & preventative care',                 icon: 'wellness-health',             sortOrder: 6 },
+  { slug: 'nutritional-consultation',    name: 'Nutritional Consultation',    description: 'Science-based diet & meal plans',               icon: 'nutritional-consultation',    sortOrder: 7 },
+  { slug: 'grooming',                    name: 'Grooming',                    description: 'Baths, nails & haircuts',                       icon: 'grooming',                    sortOrder: 8 },
+  { slug: 'extended-care',              name: 'Extended Care',               description: 'When you\'re away or need extra help',          icon: 'extended-care',               sortOrder: 9 }
 ].map(c => ({ ...c, createdAt: now, updatedAt: now }))
 
-// ── Dog Services / Providers ───────────────────────────────────────────────
+// ── Businesses ─────────────────────────────────────────────────────────────
+// ownerId is a placeholder — update with real Cognito sub when each
+// provider is onboarded via the admin flow.
+
+const businessIdBrittany    = randomUUID()
+const businessIdLisa        = randomUUID()
+const businessIdNikki       = randomUUID()
+const businessIdValerie     = randomUUID()
+const businessIdAndrea      = randomUUID()
+const businessIdMrDogClub   = randomUUID()
+const businessIdDogDays     = randomUUID()
+const businessIdBowWow      = randomUUID()
+const businessIdK9to5       = randomUUID()
+
+const businesses = [
+  {
+    businessId: businessIdBrittany,
+    ownerId: 'placeholder-brittany-aym',
+    name: 'Brittany',
+    businessName: 'AYM Dog Training',
+    email: '',
+    phone: '',
+    location: '',
+    serviceArea: '',
+    format: ['virtual'],
+    bookingRequirement: 'requires-intro-call',
+    certifications: ['RVT', 'Fear Free Professional', 'Karen Pryor Academy Puppy Start Right', 'Karen Pryor Academy Click to Calm'],
+    description: 'Brittany is the owner and lead trainer at AYM Dog Training and a Registered Veterinary Technician with a Fear Free Professional certification. Her background in veterinary medicine gives her a deep understanding of canine behaviour, health, and wellbeing. She uses science-based positive reinforcement methods to help dogs of all ages and temperaments learn in a kind, clear, and effective way with a particular focus on anxiety, fear, and stress related behaviours.',
+    verified: true,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    businessId: businessIdLisa,
+    ownerId: 'placeholder-lisa-thrive',
+    name: 'Lisa Large',
+    businessName: 'Thrive Canine Services',
+    email: '',
+    phone: '',
+    location: '',
+    serviceArea: 'York Region',
+    format: ['virtual', 'in-person'],
+    bookingRequirement: 'requires-acceptance',
+    certifications: ['CDBC', 'CPDT-KA', 'SDC', 'Certified Canine Behaviour Consultant (IAABC)', 'Certified Professional Dog Trainer (CCPDT)', 'Certified Service Dog Coach (Cooperative Paws)'],
+    description: 'Lisa Large is a certified canine behaviour consultant and co-founder of Thrive Canine Services bringing over 25 years of combined experience alongside her partner Nikki Dow. She specialises in ethical, evidence-based, and compassionate approaches supporting families, service dog teams, and pet professionals through even the most complex behaviour cases. Her philosophy is rooted in empowering dogs and their people through a trauma-informed, whole-dog approach.',
+    verified: true,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    businessId: businessIdNikki,
+    ownerId: 'placeholder-nikki-thrive',
+    name: 'Nikki Dow',
+    businessName: 'Thrive Canine Services',
+    email: '',
+    phone: '',
+    location: '',
+    serviceArea: 'York Region',
+    format: ['virtual', 'in-person'],
+    bookingRequirement: 'requires-acceptance',
+    certifications: ['BA', 'CPDT-KA', 'SDC', 'Certified Professional Dog Trainer (CCPDT)', 'Certified Service Dog Coach (Cooperative Paws)'],
+    description: 'Nikki Dow is a certified professional dog trainer and co-founder of Thrive Canine Services bringing over 25 years of combined experience alongside her partner Lisa Large. She specialises in ethical, evidence-based, and compassionate approaches supporting families, service dog teams, and pet professionals through even the most complex behaviour cases. Her philosophy is rooted in empowering dogs and their people through a trauma-informed, whole-dog approach.',
+    verified: true,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    businessId: businessIdValerie,
+    ownerId: 'placeholder-valerie-ssh',
+    name: 'Valerie',
+    businessName: 'SSH Canine Academy',
+    email: '',
+    phone: '',
+    location: '',
+    serviceArea: 'York Region',
+    format: ['virtual', 'in-person'],
+    bookingRequirement: 'requires-acceptance',
+    certifications: [],
+    description: 'Valerie is the founder of SSH Canine Academy with experience working with dogs since 2018. Her goal is to educate pet parents about the different training options available and empower dog owners to train their dogs to their full potential. She believes not one size fits all and personalises every approach to the individual dog and owner.',
+    verified: true,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    businessId: businessIdAndrea,
+    ownerId: 'placeholder-andrea-ageiger',
+    name: 'Andrea Geiger',
+    businessName: 'AGeiger Companion Animal Nutrition',
+    email: '',
+    phone: '',
+    location: '',
+    serviceArea: '',
+    format: ['virtual'],
+    bookingRequirement: 'requires-acceptance',
+    certifications: ['Certified Companion Animal Nutritionist', 'Master of Science in Veterinary Toxicology and Nutrition'],
+    description: 'Andrea Geiger is a certified companion animal nutritionist with a master\'s degree in Veterinary Toxicology and Nutrition and over five years of experience in product development and consulting. She specialises in creating science-based nutrition plans and formulating recipes that prioritise pet health ensuring optimal nutrition for dogs tailored to their individual needs.',
+    verified: true,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    businessId: businessIdMrDogClub,
+    ownerId: 'placeholder-mrdogclub',
+    name: 'Mr Dog Club',
+    businessName: 'Mr Dog Club',
+    email: '',
+    phone: '(437) 777-2729',
+    location: '12273 Yonge St, Richmond Hill, ON L4E 3M7',
+    serviceArea: 'Richmond Hill',
+    format: ['in-person'],
+    bookingRequirement: 'requires-evaluation',
+    certifications: [],
+    description: 'Mr Dog Club is a doggy daycare and grooming facility located in Richmond Hill providing a safe, supervised, and enriching environment where dogs can play, socialise, and relax. They use positive reinforcement techniques and a calm, gentle approach with all dogs, allowing extra time for nervous or anxious dogs. All dogs must meet health and vaccination requirements before attending.',
+    verified: true,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    businessId: businessIdDogDays,
+    ownerId: 'placeholder-dogdays',
+    name: 'Dog Days Daycare',
+    businessName: 'Dog Days Daycare',
+    email: '',
+    phone: '',
+    location: '',
+    serviceArea: 'Vaughan',
+    format: ['in-person'],
+    bookingRequirement: 'requires-evaluation',
+    certifications: [],
+    description: 'Dog Days Daycare is a doggy daycare facility in Vaughan carefully designed by experienced dog lovers with safety and happiness as the top priority. They feature a spacious play area for larger dogs, a separate cozy area for smaller dogs, and a large outdoor space where dogs can run, play, and socialise throughout the day.',
+    verified: false,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    businessId: businessIdBowWow,
+    ownerId: 'placeholder-bowwow',
+    name: 'Bow Wow Country Club',
+    businessName: 'Bow Wow Country Club',
+    email: '',
+    phone: '',
+    location: '16200 ON-27, Schomberg, ON',
+    serviceArea: 'York Region — Aurora, Newmarket, Richmond Hill, Vaughan, King City',
+    format: ['in-person'],
+    bookingRequirement: 'requires-evaluation',
+    certifications: [],
+    description: 'Bow Wow Country Club is a unique country resort for dogs situated on 46 acres in Schomberg, Ontario. They offer two five acre fully fenced outdoor parks with a spring fed pond, spacious indoor daycare facilities, and comfortable overnight accommodations. Every dog is managed according to their individual character and temperament.',
+    verified: true,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    businessId: businessIdK9to5,
+    ownerId: 'placeholder-k9to5',
+    name: 'K9 to 5 Doggie Daycare',
+    businessName: 'K9 to 5 Doggie Daycare',
+    email: '',
+    phone: '905-868-9100',
+    location: '38 Parkside Dr, Newmarket, ON',
+    serviceArea: 'Newmarket, York Region',
+    format: ['in-person'],
+    bookingRequirement: 'requires-evaluation',
+    certifications: [],
+    description: 'K9 to 5 Doggie Daycare has been providing a safe, clean, stimulating, and fun loving environment for dogs since 2003. They are open 24 hours a day 365 days a year including all holidays and are always cage free even overnight. Dogs are supervised around the clock by staff not webcams.',
+    verified: true,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now
+  }
+].map(b => ({ ...b, createdAt: now, updatedAt: now }))
+
+// ── Dog Services ───────────────────────────────────────────────────────────
 const dogServices = [
-  {
-    id: randomUUID(),
-    name: "Happy Paws Grooming",
-    category: "grooming",
-    description: "Professional dog grooming services including bathing, haircuts, nail trimming, and ear cleaning.",
-    price: "$$",
-    rating: 4.8,
-    reviewCount: 185,
-    image: "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=400",
-    location: "Lagos, Nigeria",
-    phone: "+234 801 234 5678"
-  },
-  {
-    id: randomUUID(),
-    name: "Canine Care Clinic",
-    category: "wellness-health",
-    description: "Full-service veterinary clinic with vaccinations, checkups, and emergency care.",
-    price: "$$$",
-    rating: 4.9,
-    reviewCount: 250,
-    image: "https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=400",
-    location: "Abuja, Nigeria",
-    phone: "+234 802 345 6789"
-  },
-  {
-    id: randomUUID(),
-    name: "Paw Palace Boarding",
-    category: "extended-care",
-    description: "Luxury dog boarding with spacious rooms, play areas, and 24/7 supervision.",
-    price: "$$$",
-    rating: 4.7,
-    reviewCount: 142,
-    image: "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=400",
-    location: "Port Harcourt, Nigeria",
-    phone: "+234 803 456 7890"
-  },
-  {
-    id: randomUUID(),
-    name: "Walkies Dog Walking",
-    category: "dog-walking",
-    description: "Professional dog walking services. Individual and group walks available.",
-    price: "$",
-    rating: 4.6,
-    reviewCount: 210,
-    image: "https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=400",
-    location: "Lagos, Nigeria",
-    phone: "+234 804 567 8901"
-  },
-  {
-    id: randomUUID(),
-    name: "Bark & Train Academy",
-    category: "training-behaviour",
-    description: "Obedience training, behavior correction, and puppy socialization classes.",
-    price: "$$",
-    rating: 4.5,
-    reviewCount: 98,
-    image: "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400",
-    location: "Ibadan, Nigeria",
-    phone: "+234 805 678 9012"
-  },
-  {
-    id: randomUUID(),
-    name: "FurEver Friends Daycare",
-    category: "daycare",
-    description: "Safe and fun dog daycare with supervised playtime and rest periods.",
-    price: "$$",
-    rating: 4.7,
-    reviewCount: 230,
-    image: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400",
-    location: "Lagos, Nigeria",
-    phone: "+234 806 789 0123"
-  },
-  {
-    id: randomUUID(),
-    name: "Pampered Pooches Spa",
-    category: "grooming",
-    description: "Luxury spa treatments for dogs including aromatherapy, massage, and premium grooming.",
-    price: "$$$",
-    rating: 4.9,
-    reviewCount: 175,
-    image: "https://images.unsplash.com/photo-1591946614720-90a587da4a36?w=400",
-    location: "Lekki, Lagos",
-    phone: "+234 807 890 1234"
-  },
-  {
-    id: randomUUID(),
-    name: "Pet Transport Nigeria",
-    category: "extended-care",
-    description: "Safe and comfortable pet transportation services across Nigeria.",
-    price: "$$",
-    rating: 4.4,
-    reviewCount: 67,
-    image: "https://images.unsplash.com/photo-1541599540903-216a46ab1b39?w=400",
-    location: "Nationwide",
-    phone: "+234 808 901 2345"
-  },
-  {
-    id: randomUUID(),
-    name: "Doggy Delights Store",
-    category: "essential-care",
-    description: "Premium dog food, toys, accessories, and supplies.",
-    price: "$$",
-    rating: 4.6,
-    reviewCount: 120,
-    image: "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=400",
-    location: "Victoria Island, Lagos",
-    phone: "+234 809 012 3456"
-  },
-  {
-    id: randomUUID(),
-    name: "K9 Security Training",
-    category: "training-behaviour",
-    description: "Professional guard dog and security training services.",
-    price: "$$$",
-    rating: 4.8,
-    reviewCount: 89,
-    image: "https://images.unsplash.com/photo-1553882809-a4f57e59501d?w=400",
-    location: "Abuja, Nigeria",
-    phone: "+234 810 123 4567"
-  }
-]
+  // Behavioural Consultations — Brittany (AYM Dog Training)
+  { id: randomUUID(), businessId: businessIdBrittany, name: 'Behavioural Consultation 30min — Brittany (AYM Dog Training)', category: 'behavioural-consultations', duration: 30, format: 'virtual', price: '$45', credits: 90,  rating: 0, reviewCount: 0, location: 'Virtual' },
+  { id: randomUUID(), businessId: businessIdBrittany, name: 'Behavioural Consultation 60min — Brittany (AYM Dog Training)', category: 'behavioural-consultations', duration: 60, format: 'virtual', price: '$90', credits: 180, rating: 0, reviewCount: 0, location: 'Virtual' },
 
-// ── Seed Categories ────────────────────────────────────────────────────────
-const categoryPutReqs = categories.map(cat => ({
-  PutRequest: { Item: cat }
-}))
+  // Behavioural Consultations — Lisa Large (Thrive Canine Services)
+  { id: randomUUID(), businessId: businessIdLisa, name: 'Behavioural Consultation 30min — Lisa Large (Thrive Canine)', category: 'behavioural-consultations', duration: 30, format: 'virtual-and-in-person', price: '$75', credits: 150, rating: 0, reviewCount: 0, location: 'York Region' },
+  { id: randomUUID(), businessId: businessIdLisa, name: 'Behavioural Consultation 60min — Lisa Large (Thrive Canine)', category: 'behavioural-consultations', duration: 60, format: 'virtual-and-in-person', price: '$150', credits: 300, rating: 0, reviewCount: 0, location: 'York Region' },
 
-const categoryCmd = new BatchWriteCommand({
-  RequestItems: {
-    [process.env.SERVICE_CATEGORIES_TABLE]: categoryPutReqs
+  // Behavioural Consultations — Nikki Dow (Thrive Canine Services)
+  { id: randomUUID(), businessId: businessIdNikki, name: 'Behavioural Consultation 30min — Nikki Dow (Thrive Canine)', category: 'behavioural-consultations', duration: 30, format: 'virtual-and-in-person', price: '$75', credits: 150, rating: 0, reviewCount: 0, location: 'York Region' },
+  { id: randomUUID(), businessId: businessIdNikki, name: 'Behavioural Consultation 60min — Nikki Dow (Thrive Canine)', category: 'behavioural-consultations', duration: 60, format: 'virtual-and-in-person', price: '$150', credits: 300, rating: 0, reviewCount: 0, location: 'York Region' },
+
+  // Behavioural Consultations — Valerie (SSH Canine Academy)
+  { id: randomUUID(), businessId: businessIdValerie, name: 'Behavioural Consultation 30min — Valerie (SSH Canine Academy)', category: 'behavioural-consultations', duration: 30, format: 'virtual-and-in-person', price: '$75', credits: 150, rating: 0, reviewCount: 0, location: 'York Region' },
+  { id: randomUUID(), businessId: businessIdValerie, name: 'Behavioural Consultation 60min — Valerie (SSH Canine Academy)', category: 'behavioural-consultations', duration: 60, format: 'virtual-and-in-person', price: '$150', credits: 300, rating: 0, reviewCount: 0, location: 'York Region' },
+
+  // Nutritional Consultations — Andrea Geiger
+  { id: randomUUID(), businessId: businessIdAndrea, name: 'Nutritional Consultation 30min — Andrea Geiger', category: 'nutritional-consultation', duration: 30, format: 'virtual', price: '', credits: 0, rating: 0, reviewCount: 0, location: 'Virtual' },
+  { id: randomUUID(), businessId: businessIdAndrea, name: 'Nutritional Consultation 60min — Andrea Geiger', category: 'nutritional-consultation', duration: 60, format: 'virtual', price: '', credits: 0, rating: 0, reviewCount: 0, location: 'Virtual' },
+
+  // Doggy Daycare
+  { id: randomUUID(), businessId: businessIdMrDogClub, name: 'Doggy Daycare — Mr Dog Club',         category: 'daycare', duration: null, format: 'in-person', price: '', credits: 0, rating: 0, reviewCount: 0, location: 'Richmond Hill, ON' },
+  { id: randomUUID(), businessId: businessIdDogDays,   name: 'Doggy Daycare — Dog Days Daycare',    category: 'daycare', duration: null, format: 'in-person', price: '', credits: 0, rating: 0, reviewCount: 0, location: 'Vaughan, ON' },
+  { id: randomUUID(), businessId: businessIdBowWow,    name: 'Doggy Daycare — Bow Wow Country Club',category: 'daycare', duration: null, format: 'in-person', price: '', credits: 0, rating: 0, reviewCount: 0, location: 'Schomberg, ON' },
+  { id: randomUUID(), businessId: businessIdK9to5,     name: 'Doggy Daycare — K9 to 5',             category: 'daycare', duration: null, format: 'in-person', price: '', credits: 0, rating: 0, reviewCount: 0, location: 'Newmarket, ON' },
+
+  // Grooming — Mr Dog Club also offers grooming
+  { id: randomUUID(), businessId: businessIdMrDogClub, name: 'Wellness Grooming — Mr Dog Club', category: 'grooming', duration: null, format: 'in-person', price: '', credits: 0, rating: 0, reviewCount: 0, location: 'Richmond Hill, ON' }
+].map(s => ({ ...s, image: '', description: '', createdAt: now, updatedAt: now }))
+
+// ── Batch write helpers ────────────────────────────────────────────────────
+
+function chunk(arr, size) {
+  const chunks = []
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size))
+  return chunks
+}
+
+async function batchWrite(tableName, items) {
+  for (const batch of chunk(items, 25)) {
+    await dynamodb.send(new BatchWriteCommand({
+      RequestItems: {
+        [tableName]: batch.map(item => ({ PutRequest: { Item: item } }))
+      }
+    }))
   }
+}
+
+// ── Run ────────────────────────────────────────────────────────────────────
+
+async function seed() {
+  console.log('\nStarting FurCircle seed...\n')
+
+  await batchWrite(process.env.SERVICE_CATEGORIES_TABLE, categories)
+  console.log(`Seeded ${categories.length} categories`)
+
+  await batchWrite(process.env.DOG_BUSINESS_TABLE, businesses)
+  console.log(`Seeded ${businesses.length} businesses`)
+
+  await batchWrite(process.env.DOGS_SERVICES_TABLE, dogServices)
+  console.log(`Seeded ${dogServices.length} services`)
+
+  console.log('\nSeed complete.\n')
+}
+
+seed().catch(err => {
+  console.error('Seed failed:', err)
+  process.exit(1)
 })
-
-// ── Seed Dog Services ──────────────────────────────────────────────────────
-const servicePutReqs = dogServices.map(service => ({
-  PutRequest: { Item: service }
-}))
-
-const serviceCmd = new BatchWriteCommand({
-  RequestItems: {
-    [process.env.DOGS_SERVICES_TABLE]: servicePutReqs
-  }
-})
-
-Promise.all([
-  dynamodb.send(categoryCmd),
-  dynamodb.send(serviceCmd)
-])
-  .then(() => console.log(`Successfully seeded ${categories.length} categories and ${dogServices.length} dog services!`))
-  .catch(err => console.error('Error seeding database:', err))
