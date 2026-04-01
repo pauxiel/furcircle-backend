@@ -963,6 +963,76 @@ const invokeHttpListBusinesses = async (queryParams = {}, user) => {
   return { statusCode: response.status, body: await response.json() }
 }
 
+// ── Dog Service CRUD ──────────────────────────────────────────────────────
+
+const invokeGetDogserviceDirect = async (id) => {
+  const { handler } = await import('../../functions/dogservices/get.mjs')
+  const event = { pathParameters: { id } }
+  const response = await handler(event)
+  return { statusCode: response.statusCode, body: JSON.parse(response.body) }
+}
+
+const invokeUpdateDogservice = async (id, data) => {
+  const { handler } = await import('../../functions/dogservices/update.mjs')
+  const event = { pathParameters: { id }, body: JSON.stringify(data) }
+  const response = await handler(event)
+  return { statusCode: response.statusCode, body: JSON.parse(response.body) }
+}
+
+const invokeDeleteDogserviceDirect = async (id) => {
+  const { handler } = await import('../../functions/dogservices/delete.mjs')
+  const event = { pathParameters: { id } }
+  const response = await handler(event)
+  return { statusCode: response.statusCode, body: JSON.parse(response.body) }
+}
+
+// ── Business CRUD ─────────────────────────────────────────────────────────
+
+const invokeCreateBusiness = async (data) => {
+  const { handler } = await import('../../functions/businesses/create.mjs')
+  const event = { body: JSON.stringify(data) }
+  const response = await handler(event)
+  return { statusCode: response.statusCode, body: JSON.parse(response.body) }
+}
+
+const invokeGetMyBusiness = async (user) => {
+  const { handler } = await import('../../functions/businesses/me.mjs')
+  const event = {
+    requestContext: { authorizer: { claims: { sub: user?.sub || 'test-user-id' } } }
+  }
+  const response = await handler(event)
+  return { statusCode: response.statusCode, body: JSON.parse(response.body) }
+}
+
+const invokeUpdateBusiness = async (businessId, data, user) => {
+  const { handler } = await import('../../functions/businesses/update.mjs')
+  const event = {
+    pathParameters: { businessId },
+    body: JSON.stringify(data),
+    requestContext: { authorizer: { claims: { sub: user?.sub || 'test-user-id' } } }
+  }
+  const response = await handler(event)
+  return { statusCode: response.statusCode, body: JSON.parse(response.body) }
+}
+
+const invokeListBusinessBookings = async (user) => {
+  const { handler } = await import('../../functions/bookings/business.mjs')
+  const event = {
+    requestContext: { authorizer: { claims: { sub: user?.sub || 'test-user-id' } } }
+  }
+  const response = await handler(event)
+  return { statusCode: response.statusCode, body: JSON.parse(response.body) }
+}
+
+// ── Category Create ───────────────────────────────────────────────────────
+
+const invokeCreateCategory = async (data) => {
+  const { handler } = await import('../../functions/categories/create.mjs')
+  const event = { body: JSON.stringify(data) }
+  const response = await handler(event)
+  return { statusCode: response.statusCode, body: JSON.parse(response.body) }
+}
+
 export {
   invokeListDogservices,
   invokeGetDogservice,
@@ -985,5 +1055,13 @@ export {
   invokeLogWellness,
   invokeGetWellness,
   invokeUpdateBookingStatus,
-  invokeListBusinesses
+  invokeListBusinesses,
+  invokeGetDogserviceDirect,
+  invokeUpdateDogservice,
+  invokeDeleteDogserviceDirect,
+  invokeCreateBusiness,
+  invokeGetMyBusiness,
+  invokeUpdateBusiness,
+  invokeListBusinessBookings,
+  invokeCreateCategory
 }

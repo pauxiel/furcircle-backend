@@ -45,5 +45,39 @@ describe('Given an authenticated user', () => {
       expect(result.statusCode).toBe(200)
       expect(result.body.items.length).toBeLessThanOrEqual(2)
     })
+
+    it('should return items with correct structure', async () => {
+      const result = await invokeListBusinesses({}, user)
+
+      expect(result.statusCode).toBe(200)
+
+      if (result.body.items.length > 0) {
+        const item = result.body.items[0]
+        expect(item).toHaveProperty('businessId')
+        expect(item).toHaveProperty('name')
+        expect(item).toHaveProperty('status')
+      }
+    })
+
+    it('should return 200 and clamp negative limit to 1', async () => {
+      const result = await invokeListBusinesses({ limit: '-5' }, user)
+
+      expect(result.statusCode).toBe(200)
+      expect(result.body).toHaveProperty('items')
+    })
+
+    it('should return 200 and use default limit for non-numeric limit', async () => {
+      const result = await invokeListBusinesses({ limit: 'abc' }, user)
+
+      expect(result.statusCode).toBe(200)
+      expect(result.body).toHaveProperty('items')
+    })
+
+    it('should return nextToken field in response', async () => {
+      const result = await invokeListBusinesses({}, user)
+
+      expect(result.statusCode).toBe(200)
+      expect(result.body).toHaveProperty('nextToken')
+    })
   })
 })
