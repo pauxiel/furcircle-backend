@@ -13,7 +13,7 @@
 - **Runtime**: Node.js 20.x — ES Modules only (`.mjs`, never `.js`)
 - **Framework**: Serverless Framework v4
 - **Auth**: Two-tier — Cognito JWT (users/business owners) + AWS IAM SigV4 (admin endpoints)
-- **Database**: DynamoDB (5 tables)
+- **Database**: DynamoDB (7 tables)
 - **AI**: Amazon Bedrock — Claude 3.5 Haiku via `@aws-sdk/client-bedrock-runtime`
 - **Tests**: Vitest — two modes: `handler` (unit/integration) and `http` (e2e against deployed API)
 - **Region**: us-east-1
