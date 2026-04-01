@@ -7,7 +7,7 @@ export const handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}')
 
-    const { name, category, description, price, rating, image, location } = body
+    const { name, category, description, price, credits, rating, image, location, businessId, duration, format } = body
 
     if (!name || !category) {
       return badRequest('Missing required fields: name and category are required')
@@ -19,9 +19,13 @@ export const handler = async (event) => {
       category,
       description: description || '',
       price: price || '',
+      credits: credits || 0,
       rating: rating || 0,
       image: image || '',
       location: location || '',
+      businessId: businessId || '',
+      duration: duration || 0,
+      format: format || '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
