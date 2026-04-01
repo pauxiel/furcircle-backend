@@ -210,6 +210,22 @@ functions:
           cors: true
           authorizer: aws_iam
 
+  # GET /businesses - List all businesses (public - IAM auth)
+  list-businesses:
+    handler: functions/businesses/list.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Scan
+        Resource:
+          - !GetAtt DogBusinessTable.Arn
+    events:
+      - http:
+          path: /businesses
+          method: get
+          cors: true
+          authorizer: aws_iam
+
   # GET /businesses/me - Get own business profile (business owner - Cognito auth)
   get-my-business:
     handler: functions/businesses/me.handler
@@ -924,6 +940,7 @@ resources:
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/POST/chatbot/chat
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/chatbot/conversations
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/chatbot/history/*
+                    - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/businesses
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/GET/businesses/me
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/PUT/businesses/*
                     - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/${sls:stage}/POST/bookings
