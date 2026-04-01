@@ -926,6 +926,43 @@ const invokeHttpUpdateBookingStatus = async (bookingId, data, user) => {
   return { statusCode: response.status, body: await response.json() }
 }
 
+/**
+ * Invoke list businesses
+ */
+const invokeListBusinesses = async (queryParams = {}, user = null) => {
+  if (mode === 'handler') {
+    return invokeHandlerListBusinesses(queryParams)
+  } else {
+    return invokeHttpListBusinesses(queryParams, user)
+  }
+}
+
+const invokeHandlerListBusinesses = async (queryParams = {}) => {
+  const { handler } = await import('../../functions/businesses/list.mjs')
+
+  const event = {
+    queryStringParameters: Object.keys(queryParams).length > 0 ? queryParams : null
+  }
+
+  const response = await handler(event)
+  const body = JSON.parse(response.body)
+
+  return { statusCode: response.statusCode, body }
+}
+
+const invokeHttpListBusinesses = async (queryParams = {}, user) => {
+  const queryString = new URLSearchParams(queryParams).toString()
+  const baseUrl = process.env.API_ENDPOINT
+  const url = queryString ? `${baseUrl}/businesses?${queryString}` : `${baseUrl}/businesses`
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${user.idToken}` }
+  })
+
+  return { statusCode: response.status, body: await response.json() }
+}
+
 export {
   invokeListDogservices,
   invokeGetDogservice,
@@ -947,5 +984,6 @@ export {
   invokeCancelBooking,
   invokeLogWellness,
   invokeGetWellness,
-  invokeUpdateBookingStatus
+  invokeUpdateBookingStatus,
+  invokeListBusinesses
 }
