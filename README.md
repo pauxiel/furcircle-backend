@@ -48,7 +48,7 @@ Mobile/Web App (Pet Owners)           Business Dashboard
 ## Database Tables
 
 ### DogServiceTable
-Individual service listings (grooming, training, vet, etc.).
+Env var: `DOGS_SERVICES_TABLE` — Individual service listings (grooming, training, vet, etc.).
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -68,7 +68,7 @@ GSI: `category-index` on `category`
 ---
 
 ### ServiceCategoryTable
-Service category definitions.
+Env var: `SERVICE_CATEGORIES_TABLE` — Service category definitions.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -81,7 +81,7 @@ Service category definitions.
 ---
 
 ### DogBusinessTable
-Dog business owner profiles. One record per business.
+Env var: `DOG_BUSINESS_TABLE` — Dog business owner profiles. One record per business.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -99,7 +99,7 @@ GSI: `ownerId-index` on `ownerId` (used to look up a business by the logged-in o
 ---
 
 ### BookingTable
-Bookings created by pet owners.
+Env var: `BOOKING_TABLE` — Bookings created by pet owners.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -116,7 +116,7 @@ GSIs: `userId-index` on `userId`, `businessId-index` on `businessId`
 ---
 
 ### ChatConversationTable
-AI chatbot conversation history per user. Auto-deleted after 14 days (DynamoDB TTL).
+Env var: `CHAT_CONVERSATION_TABLE` — AI chatbot conversation history per user. Auto-deleted after 14 days (DynamoDB TTL).
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -125,6 +125,39 @@ AI chatbot conversation history per user. Auto-deleted after 14 days (DynamoDB T
 | `title` | String | First message snippet |
 | `messages` | List | Full message history `[{role, content}]` |
 | `ttl` | Number | Unix timestamp — DynamoDB auto-deletes after this |
+
+---
+
+### PetTable
+Env var: `PET_TABLE` — Pet profiles owned by users.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `petId` | String (PK) | UUID |
+| `ownerId` | String | Cognito `sub` of the pet owner |
+| `name` | String | Pet name |
+| `breed` | String | Breed |
+| `age` | Number | Age in years |
+| `weight` | Number | Weight |
+| `createdAt` | String | ISO timestamp |
+| `updatedAt` | String | ISO timestamp |
+
+GSI: `ownerId-index` on `ownerId`
+
+---
+
+### WellnessLogTable
+Env var: `WELLNESS_LOG_TABLE` — Wellness scoring logs per pet.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `logId` | String (PK) | UUID |
+| `petId` | String | Pet being logged |
+| `score` | Number | Wellness score |
+| `notes` | String | Optional notes |
+| `createdAt` | String | ISO timestamp |
+
+GSI: `petId-index` on `petId`
 
 ---
 
