@@ -52,7 +52,7 @@ jobs:
           echo "PASS"
 
           echo "--- Check: no .env files committed ---"
-          ENV_FILES=$(git ls-files | grep -E '^\.env')
+          ENV_FILES=$(git ls-files | grep -E '^\.env' || true)
           if [ -n "$ENV_FILES" ]; then
             echo "FAIL: .env files committed to git:"
             echo "$ENV_FILES"
@@ -79,7 +79,7 @@ jobs:
           for domain in functions/*/; do
             domain_name=$(basename "$domain")
             if [ "$domain_name" = "dogservices" ]; then continue; fi
-            if ! ls tests/test_cases/${domain_name}*.test.mjs 2>/dev/null | grep -q .; then
+            if ! ls tests/test_cases/${domain_name}*.test.mjs 2>/dev/null | grep -q . 2>/dev/null; then
               MISSING_TESTS="$MISSING_TESTS\n  NO TEST: $domain_name"
             fi
           done
