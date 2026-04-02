@@ -1,5 +1,5 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb'
-import { BatchWriteCommand, DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb'
+import { BatchWriteCommand, ScanCommand, DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb'
 import { randomUUID } from 'crypto'
 import { config } from 'dotenv'
 
@@ -233,10 +233,47 @@ async function batchWrite (tableName, items) {
   }
 }
 
+async function clearTable (tableName, pkName) {
+  let lastKey
+  let deleted = 0
+  do {
+    const result = await dynamodb.send(new ScanCommand({
+      TableName: tableName,
+      ProjectionExpression: pkName,
+      ...(lastKey && { ExclusiveStartKey: lastKey })
+    }))
+
+    if (result.Items && result.Items.length > 0) {
+      for (const batch of chunk(result.Items, 25)) {
+        await dynamodb.send(new BatchWriteCommand({
+          RequestItems: {
+            [tableName]: batch.map(item => ({ DeleteRequest: { Key: item } }))
+          }
+        }))
+      }
+      deleted += result.Items.length
+    }
+
+    lastKey = result.LastEvaluatedKey
+  } while (lastKey)
+
+  return deleted
+}
+
 // ── Run ────────────────────────────────────────────────────────────────────
+
+const clearFirst = process.argv.includes('--clear')
 
 async function seed () {
   console.log('\nStarting FurCircle seed...\n')
+
+  if (clearFirst) {
+    console.log('Clearing existing data...')
+    const d1 = await clearTable(process.env.SERVICE_CATEGORIES_TABLE, 'slug')
+    const d2 = await clearTable(process.env.DOG_BUSINESS_TABLE, 'businessId')
+    const d3 = await clearTable(process.env.DOGS_SERVICES_TABLE, 'id')
+    console.log(`Deleted ${d1} categories, ${d2} businesses, ${d3} services\n`)
+  }
 
   await batchWrite(process.env.SERVICE_CATEGORIES_TABLE, categories)
   console.log(`Seeded ${categories.length} categories`)
