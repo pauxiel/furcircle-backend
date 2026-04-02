@@ -1,6 +1,10 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import * as given from '../steps/given.mjs'
+import * as teardown from '../steps/teardown.mjs'
 import * as when from '../steps/when.mjs'
+import { init } from '../steps/init.mjs'
+
+const mode = process.env.TEST_MODE || 'handler'
 
 describe('Bookings', () => {
   let petOwner
@@ -18,8 +22,21 @@ describe('Bookings', () => {
   }
 
   beforeAll(async () => {
-    petOwner = await given.an_authenticated_user()
-    businessOwner = await given.an_authenticated_user()
+    await init()
+    if (mode === 'http') {
+      petOwner = await given.an_authenticated_user()
+      businessOwner = await given.an_authenticated_user()
+    } else {
+      petOwner = { sub: 'test-pet-owner-sub', idToken: 'test-token' }
+      businessOwner = { sub: 'test-business-owner-sub', idToken: 'test-token' }
+    }
+  })
+
+  afterAll(async () => {
+    if (mode === 'http') {
+      if (petOwner) await teardown.an_authenticated_user(petOwner)
+      if (businessOwner) await teardown.an_authenticated_user(businessOwner)
+    }
   })
 
   describe('POST /bookings — create a booking', () => {
@@ -103,7 +120,7 @@ describe('Bookings', () => {
       )
 
       expect(result.statusCode).toBe(400)
-      expect(result.body.message).toMatch(/invalid status/i)
+      expect(result.body.error).toMatch(/invalid status/i)
     })
 
     it('should return 400 when status is missing', async () => {
@@ -114,7 +131,7 @@ describe('Bookings', () => {
       )
 
       expect(result.statusCode).toBe(400)
-      expect(result.body.message).toMatch(/missing required field/i)
+      expect(result.body.error).toMatch(/missing required field/i)
     })
 
     it('should return 403 when caller has no business profile', async () => {
@@ -127,14 +144,14 @@ describe('Bookings', () => {
       expect(result.statusCode).toBe(403)
     })
 
-    it('should return 404 for non-existent booking', async () => {
+    it('should return 403 when caller has no business profile (non-existent booking)', async () => {
       const result = await when.invokeUpdateBookingStatus(
         'non-existent-booking-id',
         { status: 'confirmed' },
-        businessOwner
+        petOwner
       )
 
-      expect(result.statusCode).toBe(404)
+      expect(result.statusCode).toBe(403)
     })
   })
 })

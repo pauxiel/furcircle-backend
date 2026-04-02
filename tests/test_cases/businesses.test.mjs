@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { randomUUID } from 'crypto'
 import { init } from '../steps/init.mjs'
 import {
   invokeCreateBusiness,
@@ -7,7 +8,7 @@ import {
   invokeListBusinessBookings
 } from '../steps/when.mjs'
 
-const testUser = { sub: 'test-business-owner-sub' }
+const testUser = { sub: randomUUID() }
 
 describe('Business CRUD', () => {
   let createdBusinessId
